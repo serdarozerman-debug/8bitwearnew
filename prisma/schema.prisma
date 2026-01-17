@@ -1,0 +1,354 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Kullanıcılar (Müşteriler ve Adminler)
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  password      String
+  role          UserRole  @default(CUSTOMER)
+  phone         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  orders        Order[]
+  addresses     Address[]
+  
+  @@map("users")
+}
+
+enum UserRole {
+  CUSTOMER
+  ADMIN
+  SUPPLIER
+}
+
+// Adresler
+model Address {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  fullName      String
+  phone         String
+  addressLine1  String
+  addressLine2  String?
+  city          String
+  district      String
+  postalCode    String
+  country       String    @default("TR")
+  isDefault     Boolean   @default(false)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  orders        Order[]
+  
+  @@map("addresses")
+}
+
+// Ürünler (Tişört, Sweatshirt vb.)
+model Product {
+  id            String    @id @default(cuid())
+  name          String
+  slug          String    @unique
+  description   String
+  basePrice     Decimal   @db.Decimal(10, 2)
+  
+  // Ürün özellikleri
+  category      ProductCategory
+  images        String[]  // JSON array of image URLs
+  
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  variants      ProductVariant[]
+  orderItems    OrderItem[]
+  
+  @@map("products")
+}
+
+enum ProductCategory {
+  TSHIRT
+  SWEATSHIRT
+  HOODIE
+}
+
+// Ürün Varyantları (Renk, Beden)
+model ProductVariant {
+  id            String    @id @default(cuid())
+  productId     String
+  product       Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  color         String
+  size          String
+  sku           String    @unique
+  stock         Int       @default(0)
+  additionalPrice Decimal @db.Decimal(10, 2) @default(0)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  orderItems    OrderItem[]
+  
+  @@map("product_variants")
+}
+
+// Sipariş
+model Order {
+  id              String      @id @default(cuid())
+  orderNumber     String      @unique
+  userId          String
+  user            User        @relation(fields: [userId], references: [id])
+  
+  addressId       String
+  shippingAddress Address     @relation(fields: [addressId], references: [id])
+  
+  // Fiyatlar
+  subtotal        Decimal     @db.Decimal(10, 2)
+  shippingCost    Decimal     @db.Decimal(10, 2)
+  taxAmount       Decimal     @db.Decimal(10, 2)
+  totalAmount     Decimal     @db.Decimal(10, 2)
+  
+  // Durum
+  status          OrderStatus @default(PENDING_PAYMENT)
+  paymentStatus   PaymentStatus @default(PENDING)
+  
+  // Ödeme
+  stripePaymentId String?
+  paidAt          DateTime?
+  
+  // Kargo
+  shippingProvider String?
+  trackingNumber   String?
+  shippedAt        DateTime?
+  deliveredAt      DateTime?
+  
+  // Fatura
+  invoiceNumber    String?
+  invoiceUrl       String?
+  invoicedAt       DateTime?
+  
+  // Trafik kaynağı (SEO/SEM tracking)
+  trafficSource    String?
+  utmSource        String?
+  utmMedium        String?
+  utmCampaign      String?
+  
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  items           OrderItem[]
+  aiGenerations   AIGeneration[]
+  
+  @@map("orders")
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  AI_GENERATION
+  AWAITING_APPROVAL
+  APPROVED
+  SENT_TO_SUPPLIER
+  IN_PRODUCTION
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+// Sipariş Kalemleri
+model OrderItem {
+  id              String    @id @default(cuid())
+  orderId         String
+  order           Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  productId       String
+  product         Product   @relation(fields: [productId], references: [id])
+  
+  variantId       String
+  variant         ProductVariant @relation(fields: [variantId], references: [id])
+  
+  quantity        Int
+  unitPrice       Decimal   @db.Decimal(10, 2)
+  totalPrice      Decimal   @db.Decimal(10, 2)
+  
+  // Kişiselleştirme detayları
+  customization   Json?     // Logo, baskı, etiket, nakış detayları
+  
+  // AI üretilen görsel
+  approvedDesignUrl String?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("order_items")
+}
+
+// AI Görsel Üretimi
+model AIGeneration {
+  id              String    @id @default(cuid())
+  orderId         String
+  order           Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  // Prompt ve görsel
+  originalImageUrl String
+  prompt          String    @db.Text
+  generatedImageUrl String?
+  
+  // Onay süreci
+  attemptNumber   Int       @default(1)
+  isApproved      Boolean   @default(false)
+  customerFeedback String?
+  
+  // AI detayları
+  aiModel         String    @default("dall-e-3")
+  aiParameters    Json?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("ai_generations")
+}
+
+// Tedarikçi İletişimi
+model SupplierOrder {
+  id              String    @id @default(cuid())
+  orderId         String
+  
+  emailSentAt     DateTime?
+  emailStatus     String?
+  
+  // Tedarikçi detayları
+  supplierEmail   String
+  supplierName    String
+  
+  // Üretim durumu
+  productionStarted DateTime?
+  productionCompleted DateTime?
+  
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("supplier_orders")
+}
+
+// Analitik ve Raporlama
+model Analytics {
+  id              String    @id @default(cuid())
+  
+  // Trafik
+  sessionId       String
+  userId          String?
+  
+  // Kaynak bilgileri
+  trafficSource   String?
+  utmSource       String?
+  utmMedium       String?
+  utmCampaign     String?
+  utmContent      String?
+  utmTerm         String?
+  
+  // Sayfa bilgileri
+  page            String
+  referrer        String?
+  
+  // Cihaz bilgileri
+  device          String?
+  browser         String?
+  os              String?
+  
+  // Lokasyon
+  country         String?
+  city            String?
+  
+  // Olay
+  event           String?
+  eventData       Json?
+  
+  timestamp       DateTime  @default(now())
+  
+  @@map("analytics")
+  @@index([sessionId])
+  @@index([userId])
+  @@index([trafficSource])
+}
+
+// SEO İçerik Yönetimi
+model SEOContent {
+  id              String    @id @default(cuid())
+  page            String    @unique
+  
+  metaTitle       String
+  metaDescription String
+  keywords        String[]
+  ogImage         String?
+  
+  content         Json?     // Dinamik içerik
+  
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("seo_contents")
+}
+
+// Müşteri Destek Talepleri
+model SupportTicket {
+  id              String    @id @default(cuid())
+  ticketNumber    String    @unique
+  
+  userId          String?
+  customerEmail   String
+  customerName    String
+  
+  orderId         String?
+  
+  subject         String
+  message         String    @db.Text
+  status          TicketStatus @default(OPEN)
+  priority        TicketPriority @default(MEDIUM)
+  
+  assignedTo      String?
+  resolvedAt      DateTime?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("support_tickets")
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_CUSTOMER
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
