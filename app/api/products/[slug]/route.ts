@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-// Mock products data - USING REAL T-SHIRT MOCKUP IMAGES
+// Mock products data with colored t-shirt mockups using placeholder service
 const MOCK_PRODUCTS: any = {
   'premium-tisort': {
     id: '1',
@@ -11,7 +11,7 @@ const MOCK_PRODUCTS: any = {
     basePrice: '199.99',
     category: 'TSHIRT',
     images: [
-      '/white-tshirt.png',
+      'https://placehold.co/600x700/ffffff/cccccc?text=Beyaz+T-Shirt',
     ],
     isActive: true,
     variants: [
@@ -21,7 +21,7 @@ const MOCK_PRODUCTS: any = {
         size: 'M',
         additionalPrice: '0',
         stock: 10,
-        image: '/white-tshirt.png',
+        image: 'https://placehold.co/600x700/ffffff/cccccc?text=Beyaz+T-Shirt',
       },
       {
         id: 'v2',
@@ -29,7 +29,7 @@ const MOCK_PRODUCTS: any = {
         size: 'M',
         additionalPrice: '0',
         stock: 10,
-        image: '/white-tshirt.png',
+        image: 'https://placehold.co/600x700/000000/666666?text=Siyah+T-Shirt',
       },
       {
         id: 'v3',
@@ -37,7 +37,7 @@ const MOCK_PRODUCTS: any = {
         size: 'M',
         additionalPrice: '0',
         stock: 10,
-        image: '/white-tshirt.png',
+        image: 'https://placehold.co/600x700/3b82f6/ffffff?text=Mavi+T-Shirt',
       },
       {
         id: 'v4',
@@ -45,7 +45,7 @@ const MOCK_PRODUCTS: any = {
         size: 'M',
         additionalPrice: '0',
         stock: 10,
-        image: '/white-tshirt.png',
+        image: 'https://placehold.co/600x700/ef4444/ffffff?text=Kirmizi+T-Shirt',
       },
       {
         id: 'v5',
@@ -53,7 +53,7 @@ const MOCK_PRODUCTS: any = {
         size: 'M',
         additionalPrice: '0',
         stock: 10,
-        image: '/white-tshirt.png',
+        image: 'https://placehold.co/600x700/1e3a8a/ffffff?text=Lacivert+T-Shirt',
       },
       {
         id: 'v6',
@@ -61,7 +61,7 @@ const MOCK_PRODUCTS: any = {
         size: 'M',
         additionalPrice: '0',
         stock: 10,
-        image: '/white-tshirt.png',
+        image: 'https://placehold.co/600x700/fbbf24/000000?text=Sari+T-Shirt',
       },
       {
         id: 'v7',
@@ -69,7 +69,7 @@ const MOCK_PRODUCTS: any = {
         size: 'L',
         additionalPrice: '0',
         stock: 10,
-        image: '/white-tshirt.png',
+        image: 'https://placehold.co/600x700/ffffff/cccccc?text=Beyaz+T-Shirt',
       },
       {
         id: 'v8',
@@ -77,7 +77,7 @@ const MOCK_PRODUCTS: any = {
         size: 'L',
         additionalPrice: '0',
         stock: 10,
-        image: '/white-tshirt.png',
+        image: 'https://placehold.co/600x700/000000/666666?text=Siyah+T-Shirt',
       },
     ],
   },

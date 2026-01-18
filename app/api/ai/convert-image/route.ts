@@ -1,771 +1,479 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
-import Replicate from 'replicate'
-import sharp from 'sharp'
 
-// ========================================
-// DETERMINISTIK PIXEL ART POST-PROCESSOR (HYBRID APPROACH)
-// No palette lock, no blue background - just flatten + quantize + outline + transparent
-// ========================================
-async function convertToRealPixelArt(imageUrl: string): Promise<Buffer> {
-  console.log('[PixelArt] 🎨 Starting HYBRID post-processing (transparent PNG)...')
-  
-  // STEP 0: Fetch AI-generated image
-  const response = await fetch(imageUrl)
-  const arrayBuffer = await response.arrayBuffer()
-  const inputBuffer = Buffer.from(arrayBuffer)
-  const meta = await sharp(inputBuffer).metadata()
-  const hasAlpha = !!meta.hasAlpha
-  
-  // STEP 0.5: NO CROP (input character is already centered)
-  console.log('[PixelArt] ✂️  Skipping center crop (character is already centered in input)')
-  let cropped = inputBuffer
-  
-  // STEP 1: Resize to 64x64 with nearest-neighbor (NO interpolation!)
-  console.log('[PixelArt] 📐 Resizing to 64x64 (nearest-neighbor, 3D PRINT OPTIMIZED)...')
-  let base = sharp(cropped)
-  // If no alpha, force full opaque alpha so mask is 255 everywhere
-  if (!hasAlpha) {
-    base = base.ensureAlpha(1) // alpha = 255
-  } else {
-    base = base.ensureAlpha()
-  }
-
-  const resized = await base
-    .resize(64, 64, { // 3D BASKI: 64x64 (büyük pikseller)
-      kernel: 'nearest', // CRITICAL: no smoothing
-      fit: 'cover', // CROP to fill (not contain) - ensures single character
-      position: 'center',
-      background: { r: 0, g: 0, b: 0, alpha: 0 }
-    })
-    .ensureAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true })
-  
-  const { data, info } = resized
-  const width = info.width
-  const height = info.height
-  
-  // STEP 2: EXTRACT ALPHA MASK (binary, separate from RGB)
-  console.log('[PixelArt] 🎭 Extracting alpha mask (binary)...')
-  const alphaMask = new Uint8Array(width * height)
-  if (!hasAlpha) {
-    // No alpha in source: treat everything as fully opaque
-    alphaMask.fill(255)
-  } else {
-    for (let i = 0; i < data.length; i += 4) {
-      const alpha = data[i + 3]
-      alphaMask[i / 4] = alpha > 0 ? 255 : 0 // Binary mask
-    }
-  }
-
-  // STEP 2.5: UN-PREMULTIPLY COLORS (if alpha existed) TO PREVENT GREYING
-  const rgbData = Buffer.from(data)
-  if (hasAlpha) {
-    for (let i = 0; i < rgbData.length; i += 4) {
-      const a = rgbData[i + 3]
-      if (a === 0) continue
-      const factor = 255 / a
-      rgbData[i] = Math.min(255, Math.round(rgbData[i] * factor))
-      rgbData[i + 1] = Math.min(255, Math.round(rgbData[i + 1] * factor))
-      rgbData[i + 2] = Math.min(255, Math.round(rgbData[i + 2] * factor))
-    }
-  }
-  
-  // STEP 3: QUANTIZE TO ≤32 COLORS (preserve DALL-E color variety)
-  console.log('[PixelArt] 🎨 Quantizing to ≤32 colors (preserve variety)...')
-  const palette = extractPaletteAlphaSafe(rgbData, alphaMask, 32) // RENK ÇEŞITLILIĞI: 16 → 32
-  const quantized = Buffer.from(rgbData) // Clone
-  
-  for (let i = 0; i < data.length; i += 4) {
-    if (alphaMask[i / 4] === 0) continue // Skip transparent
-    
-    const r = rgbData[i]
-    const g = rgbData[i + 1]
-    const b = rgbData[i + 2]
-    
-    // Find nearest palette color
-    let minDist = Infinity
-    let bestColor = [r, g, b]
-    
-    for (const color of palette) {
-      const dist = Math.sqrt(
-        Math.pow(r - color[0], 2) +
-        Math.pow(g - color[1], 2) +
-        Math.pow(b - color[2], 2)
-      )
-      if (dist < minDist) {
-        minDist = dist
-        bestColor = color
-      }
-    }
-    
-    quantized[i] = bestColor[0]
-    quantized[i + 1] = bestColor[1]
-    quantized[i + 2] = bestColor[2]
-  }
-  
-  // STEP 3.5: TONE FLATTEN - DISABLED (preserving DALL-E 3 colors)
-  console.log('[PixelArt] 🎭 SKIPPING tone flattening (preserve DALL-E colors)...')
-  const flattened = quantized // NO FLATTENING
-  
-  // STEP 4: REGION MERGE - DISABLED (preserving DALL-E 3 colors)
-  console.log('[PixelArt] 🔗 SKIPPING region merge (preserve DALL-E colors)...')
-  const merged = flattened // NO MERGE
-  
-  // STEP 5: ADD 2PX THICK BLACK OUTLINE (3D PRINT: bold outlines)
-  console.log('[PixelArt] 🖊️  Adding THICK black outlines (2px for 3D print)...')
-  const outlined = addThickOutlineAlphaSafe(merged, alphaMask, width, height, 2) // 3D BASKI: 2px kalın
-  
-  // STEP 6: RESTORE ALPHA (transparent background - NO BLUE FILL)
-  console.log('[PixelArt] 🎭 Restoring alpha (transparent PNG for printing)...')
-  for (let i = 0; i < outlined.length; i += 4) {
-    outlined[i + 3] = alphaMask[i / 4] // 0 = transparent, 255 = opaque
-  }
-  
-  // STEP 7: Convert back to PNG
-  console.log('[PixelArt] 💾 Converting to PNG...')
-  const finalBuffer = await sharp(outlined, {
-    raw: {
-      width,
-      height,
-      channels: 4
-    }
-  })
-  .png()
-  .toBuffer()
-  
-  console.log('[PixelArt] ✅ ALPHA-SAFE post-processing complete!')
-  return finalBuffer
-}
-
-// AUTO-CROP TO LARGEST OPAQUE REGION (eliminates checkerboard and duplicate characters)
-async function autoCropToLargestRegion(inputBuffer: Buffer): Promise<Buffer> {
-  const image = sharp(inputBuffer)
-  const { data, info } = await image
-    .ensureAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true })
-  
-  const width = info.width
-  const height = info.height
-  
-  // Find bounding box of all opaque pixels
-  let minX = width, minY = height, maxX = 0, maxY = 0
-  
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const i = (y * width + x) * 4
-      const alpha = data[i + 3]
-      
-      if (alpha > 127) { // Opaque pixel
-        if (x < minX) minX = x
-        if (x > maxX) maxX = x
-        if (y < minY) minY = y
-        if (y > maxY) maxY = y
-      }
-    }
-  }
-  
-  // If no opaque pixels, return original
-  if (minX >= maxX || minY >= maxY) {
-    return inputBuffer
-  }
-  
-  // Add 5% padding
-  const cropWidth = maxX - minX + 1
-  const cropHeight = maxY - minY + 1
-  const padding = Math.round(Math.max(cropWidth, cropHeight) * 0.05)
-  
-  minX = Math.max(0, minX - padding)
-  minY = Math.max(0, minY - padding)
-  maxX = Math.min(width - 1, maxX + padding)
-  maxY = Math.min(height - 1, maxY + padding)
-  
-  const finalCropWidth = maxX - minX + 1
-  const finalCropHeight = maxY - minY + 1
-  
-  console.log(`[PixelArt] ✂️  Cropping from ${width}x${height} to ${finalCropWidth}x${finalCropHeight} (removed ${width - finalCropWidth}x${height - finalCropHeight} transparent/checkerboard area)`)
-  
-  // Crop to bounding box
-  return await sharp(inputBuffer)
-    .extract({
-      left: minX,
-      top: minY,
-      width: finalCropWidth,
-      height: finalCropHeight
-    })
-    .toBuffer()
-}
-
-// CENTER CROP: Take center 40% of image (isolates single character from lineup)
-async function centerCropToSingleCharacter(inputBuffer: Buffer): Promise<Buffer> {
-  const meta = await sharp(inputBuffer).metadata()
-  const width = meta.width || 512
-  const height = meta.height || 512
-  
-  // Calculate center crop (40% width, 60% height to focus on face/upper body)
-  const cropWidth = Math.round(width * 0.4)
-  const cropHeight = Math.round(height * 0.6)
-  const left = Math.round((width - cropWidth) / 2)
-  const top = Math.round((height - cropHeight) / 2)
-  
-  console.log(`[PixelArt] ✂️  Center crop: ${width}x${height} → ${cropWidth}x${cropHeight} (isolating center character)`)
-  
-  return await sharp(inputBuffer)
-    .extract({
-      left,
-      top,
-      width: cropWidth,
-      height: cropHeight
-    })
-    .toBuffer()
-}
-
-// Extract dominant colors (ALPHA-SAFE: skip transparent pixels)
-function extractPaletteAlphaSafe(data: Buffer, alphaMask: Uint8Array, maxColors: number): number[][] {
-  const colorCounts = new Map<string, number>()
-  
-  for (let i = 0; i < data.length; i += 4) {
-    if (alphaMask[i / 4] === 0) continue // SKIP TRANSPARENT
-    
-    const r = data[i]
-    const g = data[i + 1]
-    const b = data[i + 2]
-    
-    const key = `${r},${g},${b}`
-    colorCounts.set(key, (colorCounts.get(key) || 0) + 1)
-  }
-  
-  // Sort by frequency and take top N colors
-  const sorted = Array.from(colorCounts.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, maxColors)
-  
-  return sorted.map(([key]) => key.split(',').map(Number))
-}
-
-// TONE FLATTENING: merge similar shades (kills shading, keeps color identity)
-function toneFlattening(data: Buffer, alphaMask: Uint8Array, width: number, height: number, threshold: number): Buffer {
-  const result = Buffer.from(data)
-  
-  // For each pixel, check neighbors and flatten to dominant shade
-  for (let y = 1; y < height - 1; y++) {
-    for (let x = 1; x < width - 1; x++) {
-      const i = (y * width + x) * 4
-      
-      if (alphaMask[i / 4] === 0) continue
-      
-      const r = data[i]
-      const g = data[i + 1]
-      const b = data[i + 2]
-      
-      // Check 8-neighbors for similar colors
-      const neighbors = [
-        { x: x - 1, y: y - 1 }, { x: x, y: y - 1 }, { x: x + 1, y: y - 1 },
-        { x: x - 1, y: y },                         { x: x + 1, y: y },
-        { x: x - 1, y: y + 1 }, { x: x, y: y + 1 }, { x: x + 1, y: y + 1 },
-      ]
-      
-      let sumR = r, sumG = g, sumB = b, count = 1
-      
-      for (const n of neighbors) {
-        const ni = (n.y * width + n.x) * 4
-        if (alphaMask[ni / 4] === 0) continue
-        
-        const nr = data[ni]
-        const ng = data[ni + 1]
-        const nb = data[ni + 2]
-        
-        // If color is similar (within threshold), merge
-        const diff = Math.abs(r - nr) + Math.abs(g - ng) + Math.abs(b - nb)
-        if (diff < threshold) {
-          sumR += nr
-          sumG += ng
-          sumB += nb
-          count++
-        }
-      }
-      
-      // Average similar colors (flattens tones)
-      if (count >= 2) { // 3D BASKI: daha agresif (was 3)
-        result[i] = Math.round(sumR / count)
-        result[i + 1] = Math.round(sumG / count)
-        result[i + 2] = Math.round(sumB / count)
-      }
-    }
-  }
-  
-  return result
-}
-
-// REGION MERGE STRONG: merge same-color regions + remove small islands
-function regionMergeStrong(data: Buffer, alphaMask: Uint8Array, width: number, height: number): Buffer {
-  const result = Buffer.from(data)
-  
-  // Pass 1: Merge same-color adjacent pixels (stronger threshold)
-  for (let y = 1; y < height - 1; y++) {
-    for (let x = 1; x < width - 1; x++) {
-      const i = (y * width + x) * 4
-      
-      if (alphaMask[i / 4] === 0) continue
-      
-      const r = data[i]
-      const g = data[i + 1]
-      const b = data[i + 2]
-      
-      // Check 4 neighbors
-      const neighbors = [
-        { x: x, y: y - 1 }, // top
-        { x: x, y: y + 1 }, // bottom
-        { x: x - 1, y: y }, // left
-        { x: x + 1, y: y }, // right
-      ]
-      
-      let sameColorCount = 0
-      let avgR = r, avgG = g, avgB = b
-      
-      for (const n of neighbors) {
-        const ni = (n.y * width + n.x) * 4
-        if (alphaMask[ni / 4] === 0) continue
-        
-        const nr = data[ni]
-        const ng = data[ni + 1]
-        const nb = data[ni + 2]
-        
-        // If very similar color (MODERATE threshold for 3D PRINT + COLOR)
-        const diff = Math.abs(r - nr) + Math.abs(g - ng) + Math.abs(b - nb)
-        if (diff < 25) { // 3D BASKI: orta seviye merge (renk koruyucu)
-          sameColorCount++
-          avgR += nr
-          avgG += ng
-          avgB += nb
-        }
-      }
-      
-      // If majority neighbors are same color, snap to average
-      if (sameColorCount >= 2) {
-        result[i] = Math.round(avgR / (sameColorCount + 1))
-        result[i + 1] = Math.round(avgG / (sameColorCount + 1))
-        result[i + 2] = Math.round(avgB / (sameColorCount + 1))
-      }
-    }
-  }
-  
-  // Pass 2: Remove small islands (single isolated pixels)
-  for (let y = 1; y < height - 1; y++) {
-    for (let x = 1; x < width - 1; x++) {
-      const i = (y * width + x) * 4
-      
-      if (alphaMask[i / 4] === 0) continue
-      
-      const r = result[i]
-      const g = result[i + 1]
-      const b = result[i + 2]
-      
-      // Check if this pixel is isolated (all 4 neighbors are different colors)
-      const neighbors = [
-        result[((y - 1) * width + x) * 4],
-        result[((y + 1) * width + x) * 4],
-        result[(y * width + (x - 1)) * 4],
-        result[(y * width + (x + 1)) * 4],
-      ]
-      
-      let differentCount = 0
-      let majorityR = 0, majorityG = 0, majorityB = 0
-      
-      for (let j = 0; j < neighbors.length; j++) {
-        const ni = (j < 2 ? ((j === 0 ? y - 1 : y + 1) * width + x) : (y * width + (j === 2 ? x - 1 : x + 1))) * 4
-        if (alphaMask[ni / 4] === 0) continue
-        
-        const nr = result[ni]
-        const ng = result[ni + 1]
-        const nb = result[ni + 2]
-        
-        const diff = Math.abs(r - nr) + Math.abs(g - ng) + Math.abs(b - nb)
-        if (diff > 25) { // 3D BASKI: moderate island removal (renk koruyucu)
-          differentCount++
-          majorityR += nr
-          majorityG += ng
-          majorityB += nb
-        }
-      }
-      
-      // ONLY if ALL 4 neighbors are different (true isolated island)
-      if (differentCount >= 4) {
-        result[i] = Math.round(majorityR / differentCount)
-        result[i + 1] = Math.round(majorityG / differentCount)
-        result[i + 2] = Math.round(majorityB / differentCount)
-      }
-    }
-  }
-  
-  return result
-}
-
-// ADD BLACK OUTLINE (ALPHA-SAFE: based on alpha mask edges)
-function addOutlineAlphaSafe(data: Buffer, alphaMask: Uint8Array, width: number, height: number): Buffer {
-  const result = Buffer.from(data)
-  
-  for (let y = 1; y < height - 1; y++) {
-    for (let x = 1; x < width - 1; x++) {
-      const i = (y * width + x) * 4
-      
-      // If pixel is opaque
-      if (alphaMask[i / 4] === 255) {
-        // Check if any neighbor is transparent
-        const neighbors = [
-          alphaMask[((y - 1) * width + x) / 1], // top
-          alphaMask[((y + 1) * width + x) / 1], // bottom
-          alphaMask[(y * width + (x - 1)) / 1], // left
-          alphaMask[(y * width + (x + 1)) / 1], // right
-        ]
-        
-        const hasTransparentNeighbor = neighbors.some(a => a === 0)
-        
-        // If this is an edge pixel, make it black
-        if (hasTransparentNeighbor) {
-          result[i] = 0     // Black
-          result[i + 1] = 0
-          result[i + 2] = 0
-        }
-      }
-    }
-  }
-  
-  return result
-}
-
-// ADD THICK BLACK OUTLINE (for 3D print - 2px or more)
-function addThickOutlineAlphaSafe(data: Buffer, alphaMask: Uint8Array, width: number, height: number, thickness: number = 2): Buffer {
-  const result = Buffer.from(data)
-  
-  // First pass: mark all edge pixels (distance 1 from transparent)
-  const edgePixels = new Set<number>()
-  
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const i = y * width + x
-      
-      // If pixel is opaque
-      if (alphaMask[i] === 255) {
-        // Check 8-neighbors for transparent pixels
-        let hasTransparentNeighbor = false
-        
-        for (let dy = -1; dy <= 1; dy++) {
-          for (let dx = -1; dx <= 1; dx++) {
-            if (dx === 0 && dy === 0) continue
-            
-            const nx = x + dx
-            const ny = y + dy
-            
-            if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-              const ni = ny * width + nx
-              if (alphaMask[ni] === 0) {
-                hasTransparentNeighbor = true
-                break
-              }
-            }
-          }
-          if (hasTransparentNeighbor) break
-        }
-        
-        if (hasTransparentNeighbor) {
-          edgePixels.add(i)
-        }
-      }
-    }
-  }
-  
-  // Second pass: expand edge inward by (thickness - 1) pixels
-  const outlinePixels = new Set<number>(edgePixels)
-  
-  for (let t = 1; t < thickness; t++) {
-    const newOutlinePixels = new Set<number>(outlinePixels)
-    
-    for (const pixelIndex of outlinePixels) {
-      const x = pixelIndex % width
-      const y = Math.floor(pixelIndex / width)
-      
-      // Add 4-neighbors
-      const neighbors = [
-        { nx: x, ny: y - 1 },
-        { nx: x, ny: y + 1 },
-        { nx: x - 1, ny: y },
-        { nx: x + 1, ny: y },
-      ]
-      
-      for (const { nx, ny } of neighbors) {
-        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-          const ni = ny * width + nx
-          if (alphaMask[ni] === 255) { // Only expand into opaque pixels
-            newOutlinePixels.add(ni)
-          }
-        }
-      }
-    }
-    
-    outlinePixels.clear()
-    for (const p of newOutlinePixels) {
-      outlinePixels.add(p)
-    }
-  }
-  
-  // Final pass: paint all outline pixels black
-  for (const pixelIndex of outlinePixels) {
-    const i = pixelIndex * 4
-    result[i] = 0     // Black
-    result[i + 1] = 0
-    result[i + 2] = 0
-  }
-  
-  return result
-}
-
+// Next.js App Router body size config (10MB)
 export const runtime = 'nodejs'
-export const maxDuration = 120
+export const maxDuration = 120 // 120 seconds max
 export const dynamic = 'force-dynamic'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  maxRetries: 3,
-  timeout: 120000,
-})
+const openaiKey = process.env.OPENAI_API_KEY
+const replicateToken = process.env.REPLICATE_API_TOKEN
 
-const replicate = new Replicate({
-  auth: process.env.REPLICATE_API_TOKEN,
+const openai = new OpenAI({
+  apiKey: openaiKey,
+  maxRetries: 3,
+  timeout: 120000, // 120 seconds for image processing
 })
 
 export async function POST(req: NextRequest) {
   try {
-    const { imageUrl, prompt: userPrompt } = await req.json()
+    const { imageUrl, prompt, provider } = await req.json()
 
-    if (!imageUrl || !userPrompt) {
+    if (!imageUrl || !prompt) {
       return NextResponse.json(
         { error: 'imageUrl and prompt are required' },
         { status: 400 }
       )
     }
 
-    console.log('[AI Convert] 🎨 PRODUCTION PIPELINE: GPT-4o Vision → Stable Diffusion')
-    console.log('[AI Convert] User prompt:', userPrompt)
-    console.log('[AI Convert] Replicate token present:', !!process.env.REPLICATE_API_TOKEN)
-
-    // ========================================
-    // STEP 0: Validate and normalize image URL
-    // ========================================
-    let normalizedImageUrl = imageUrl
-    
-    // If data URL, keep as is (OpenAI Vision accepts data URLs)
-    if (!imageUrl.startsWith('data:image/')) {
-      // If external URL, ensure it's accessible
-      console.log('[AI Convert] 📥 External image URL detected, validating...')
-    } else {
-      console.log('[AI Convert] 📥 Data URL detected (base64)')
-    }
-
-    // ========================================
-    // STEP 1: GPT-4o Vision Analysis
-    // ========================================
-    console.log('[AI Convert] 📸 STEP 1: Analyzing image with GPT-4o Vision...')
-
-    const visionResponse = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      max_tokens: 80,
-      messages: [
+    if (!openaiKey && !replicateToken) {
+      return NextResponse.json(
         {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: 'Describe this CHARACTER or FIGURE in the image for creating a pixel art sprite: exact hair color and style, skin tone, clothing and colors, accessories, pose, facial expression. Focus on visual appearance only, no identity. Be specific and descriptive. Max 50 words.',
-            },
-            {
-              type: 'image_url',
-              image_url: {
-                url: normalizedImageUrl,
-                detail: 'high',
-              },
-            },
-          ],
+          success: false,
+          error: 'AI sağlayıcısı yapılandırılmamış (OPENAI_API_KEY veya REPLICATE_API_TOKEN gerekli)',
         },
-      ],
+        { status: 500 }
+      )
+    }
+
+    if (provider === 'replicate' && !replicateToken) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Replicate kullanılamıyor: REPLICATE_API_TOKEN eksik',
+        },
+        { status: 400 }
+      )
+    }
+
+    console.log('[AI Convert] Starting IMAGE-TO-IMAGE transformation using OpenAI Images API...')
+    console.log('[AI Convert] Input image size:', imageUrl.length, 'bytes')
+
+    // Dynamic import sharp for Next.js compatibility
+    const sharp = (await import('sharp')).default
+    
+    // Base64 data URL'i buffer'a çevir
+    const base64Data = imageUrl.replace(/^data:image\/\w+;base64,/, '')
+    const inputBuffer = Buffer.from(base64Data, 'base64')
+    
+    console.log('[AI Convert] Converting to PNG format...')
+    
+    // Sharp ile PNG'ye çevir ve 4MB altına düşür
+    const pngBuffer = await sharp(inputBuffer)
+      .resize(1024, 1024, {
+        fit: 'inside',
+        withoutEnlargement: true
+      })
+      .png()
+      .toBuffer()
+    
+    // PNG metadata'yı al (boyut için)
+    const metadata = await sharp(pngBuffer).metadata()
+    const width = metadata.width || 1024
+    const height = metadata.height || 1024
+    
+    console.log('[AI Convert] PNG created, size:', pngBuffer.length, 'bytes', `${width}x${height}`)
+    
+    // PNG File objesi oluştur
+    const imageFile = new File([pngBuffer], 'input.png', { type: 'image/png' })
+    
+    // Mask oluştur (aynı boyutta, tamamen transparent - tüm görüntüyü edit et)
+    const maskBuffer = await sharp({
+      create: {
+        width: width,
+        height: height,
+        channels: 4,
+        background: { r: 0, g: 0, b: 0, alpha: 0 }
+      }
     })
-
-    const imageDescription = visionResponse.choices[0]?.message?.content
-
-    if (!imageDescription) {
-      throw new Error('No description from GPT-4o Vision')
-    }
-
-    console.log('[AI Convert] 📝 Vision Analysis:', imageDescription)
-
-    // ========================================
-    // STEP 2: Stable Diffusion Generation
-    // ========================================
-    console.log('[AI Convert] 🎮 STEP 2: Generating pixel art with Stable Diffusion...')
-
-    // ULTRA-FOCUSED PROMPT: SINGLE CHARACTER PORTRAIT (NO MULTIPLE SPRITES)
-    const pixelArtPrompt = `CENTERED CLOSE-UP PORTRAIT of ONE SINGLE CHARACTER filling the entire frame. 8-bit pixel art sprite, 64x64, VIBRANT COLORS (red blue yellow green), large blocky pixels, flat colors, thick black outlines, transparent background. NO MULTIPLE CHARACTERS, NO LINEUP, NO GROUP, JUST ONE CENTERED FACE/BUST. Character: ${imageDescription.substring(0, 50)}`
-
-    const negativePrompt = 'multiple characters, character lineup, multiple people, side by side characters, group, trio, three characters, duplicates, mirrors, full body, tiny character, realistic, photo, gradients, smooth, detailed, grayscale, monochrome, props, accessories, background objects'
-
-    console.log('[AI Convert] 📝 Pixel Art Prompt (length:', pixelArtPrompt.length, '):', pixelArtPrompt.substring(0, 100) + '...')
-
-    // REPLICATE: Stable Diffusion (optimized for pixel art)
-    console.log('[AI Convert] 🚀 Calling Replicate Stable Diffusion...')
+    .png()
+    .toBuffer()
     
+    const maskFile = new File([maskBuffer], 'mask.png', { type: 'image/png' })
+    
+    console.log('[AI Convert] Mask created, size:', maskBuffer.length, 'bytes', `${width}x${height}`)
+
+    // ULTRA FLAT PROMPT - Her parça TEK RENK (no shading at all) + VIBRANT COLORS
+    const standardPrompt = `Create a COLORFUL VIBRANT pixel art character from this photo. 64x64 pixels. TRANSPARENT BACKGROUND.
+
+CRITICAL RULES - EACH BODY PART MUST BE ONE SOLID BRIGHT FLAT COLOR:
+- Hair: ONE solid DARK/BRIGHT color (brown/black/blonde/red), rounded blob, NO strands, NO shading
+- Face/skin: ONE solid peachy/tan color, NO shading, simple oval shape
+- Jacket/top: ONE solid BRIGHT color (white/red/blue/green), simple shape, NO folds, NO shading
+- Pants: ONE solid DARK color (black/blue), NO shading
+- Shoes: ONE solid BRIGHT color, NO shading
+
+Use VIBRANT, SATURATED colors - NOT gray, NOT washed out, NOT pale.
+BLACK OUTLINES ONLY around each shape to separate parts.
+
+Style: Like classic NES/Game Boy Color sprites - FLAT solid colors, simple geometric shapes, BRIGHT and COLORFUL.
+NO gradients, NO shading, NO highlights, NO shadows, NO texture, NO details, NO gray tones.
+
+Background MUST be completely transparent (alpha=0). NO scenery, NO ground, NO sky.`
+
+    const finalPrompt = standardPrompt.substring(0, 1000)
+
+    console.log('[AI Convert] ===== PROMPT (len:', finalPrompt.length, ') =====')
+    console.log(finalPrompt)
+    console.log('[AI Convert] ===== END PROMPT =====')
+
+    const preferReplicate = provider === 'replicate'
     let convertedImageUrl: string | null = null
-    
-    try {
-      // Replicate returns an async iterator or array
-      const prediction = await replicate.run(
-      "stability-ai/stable-diffusion:db21e45d3f7023abc2a46ee38a23973f6dce16bb082a930b0c49861f96d1e5bf",
-      {
-        input: {
-          prompt: pixelArtPrompt,
-          negative_prompt: negativePrompt,
-          width: 512,
-          height: 512,
-          num_outputs: 1,
-          num_inference_steps: 50,
-          guidance_scale: 9.0,
-          scheduler: "K_EULER_ANCESTRAL",
+    let providerUsed: 'openai-edit' | 'replicate' | '' = ''
+
+    // Common helper: Replicate fallback (SDXL image-to-image)
+    const tryReplicate = async (): Promise<string | null> => {
+      if (!replicateToken) {
+        console.warn('[AI Convert] Replicate token not configured, skipping replicate fallback')
+        return null
+      }
+
+      // SDXL image-to-image model version (stability-ai/sdxl image-to-image)
+      const modelVersion =
+        process.env.REPLICATE_SDXL_VERSION ||
+        'stability-ai/sdxl:39ed52f2a78e934b3ba6e2a089f5b1c712de7dfd16655c0cd860e19fd5d7151a'
+
+      const dataUri = `data:image/png;base64,${pngBuffer.toString('base64')}`
+
+      console.log('[AI Convert] Replicate: creating prediction...')
+      const createRes = await fetch('https://api.replicate.com/v1/predictions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${replicateToken}`,
         },
+        body: JSON.stringify({
+          version: modelVersion,
+          input: {
+            prompt: finalPrompt + ' Single figure centered.',
+            negative_prompt:
+              'two people, multiple characters, duplicate, twins, crowd, extra person, clone, mirror, shading, gradients, blur, background, text, watermark, lighting effects, realistic details, strands, texture',
+            image: dataUri,
+            num_outputs: 1,
+            num_inference_steps: 28,
+            guidance_scale: 6.5, // Düşürdük (çoğaltma riski azalır)
+            strength: 0.75, // Biraz düşürdük
+            output_format: 'png',
+          },
+        }),
+      })
+
+      if (!createRes.ok) {
+        const errText = await createRes.text().catch(() => '')
+        console.warn('[AI Convert] Replicate create failed:', createRes.status, errText)
+        return null
       }
-    )
 
-    console.log('[AI Convert] 📦 Replicate prediction type:', typeof prediction)
-    console.log('[AI Convert] 📦 Is array?', Array.isArray(prediction))
-    console.log('[AI Convert] 📦 Has Symbol.iterator?', !!(prediction as any)?.[Symbol.iterator])
-    console.log('[AI Convert] 📦 Has Symbol.asyncIterator?', !!(prediction as any)?.[Symbol.asyncIterator])
-    
-    // Replicate may return:
-    // 1. Array of URLs (direct)
-    // 2. Async iterator (for streaming)
-    
-    if (Array.isArray(prediction) && prediction.length > 0) {
-      // Direct array of URLs
-      convertedImageUrl = prediction[0]
-      console.log('[AI Convert] ✅ Got URL from array:', convertedImageUrl)
-    } else if ((prediction as any)?.[Symbol.asyncIterator]) {
-      // Async iterator - collect all results
-      console.log('[AI Convert] 📡 Reading async iterator...')
-      const results: any[] = []
-      for await (const item of prediction as any) {
-        console.log('[AI Convert] 📥 Iterator item:', item)
-        results.push(item)
+      const createJson: any = await createRes.json()
+      const predictionId = createJson?.id
+      if (!predictionId) {
+        console.warn('[AI Convert] Replicate create missing id')
+        return null
       }
-      
-      if (results.length > 0) {
-        convertedImageUrl = results[0]
-        console.log('[AI Convert] ✅ Got URL from iterator:', convertedImageUrl)
-      }
-    } else if (typeof prediction === 'string') {
-      // Direct URL string
-      convertedImageUrl = prediction
-      console.log('[AI Convert] ✅ Got URL as string:', convertedImageUrl)
-    }
-    
-    } catch (replicateError: any) {
-      console.warn('[AI Convert] ⚠️ Replicate error (NSFW or other):', replicateError.message)
-      console.log('[AI Convert] 🔄 Falling back to DALL-E 3...')
-      // Continue to fallback below
-    }
 
-    if (!convertedImageUrl || typeof convertedImageUrl !== 'string') {
-      console.warn('[AI Convert] ⚠️ Replicate returned invalid format. Falling back to DALL-E 3 + POST-PROCESSING...')
-      
-      // FALLBACK: Use DALL-E 3 + Deterministik Post-Processing
-      try {
-        // DALL-E 3: SIMPLE + COLORFUL (64x64, minimal detail, NO BACKGROUND)
-        const simplePrompt = `Create a simple 8-bit retro video game character sprite, 64x64 pixels, TRANSPARENT BACKGROUND.
+      // Poll prediction
+      const pollUrl = `https://api.replicate.com/v1/predictions/${predictionId}`
+      const maxAttempts = 15
+      const delay = (ms: number) => new Promise(res => setTimeout(res, ms))
 
-Use solid flat colors (one color per body part):
-- Hair: solid dark brown blob
-- Earmuffs: solid beige circles
-- Skin: solid light peach
-- Jacket: solid white simple shape
-- Pants: solid black
-- Shoes: solid bright purple
-
-Character: ${imageDescription}
-
-Style: Simple iconic 8-bit sprite (like early NES games). Large blocky shapes, thick black outlines, flat solid colors, ONE centered character. NO background, NO shading, NO details, NO texture. Transparent background. Simple geometric shapes only.`
-        
-        console.log('[AI Convert] 📝 DALL-E 3 Prompt (SINGLE char, close-up):', simplePrompt)
-        
-        const dalle3Response = await openai.images.generate({
-          model: 'dall-e-3',
-          prompt: simplePrompt,
-      n: 1,
-      size: '1024x1024',
-          quality: 'hd', // HD quality for better detail
-          style: 'vivid', // VIVID style for more saturated colors (not natural)
-          style: 'vivid', // Vivid for richer colors
+      for (let i = 0; i < maxAttempts; i++) {
+        const pollRes = await fetch(pollUrl, {
+          headers: { Authorization: `Bearer ${replicateToken}` },
         })
-
-        if (!dalle3Response.data[0]?.url) {
-          throw new Error('No image URL returned from DALL-E 3 fallback')
+        if (!pollRes.ok) {
+          console.warn('[AI Convert] Replicate poll failed:', pollRes.status)
+          return null
         }
+        const pollJson: any = await pollRes.json()
+        if (pollJson?.status === 'succeeded') {
+          const out = pollJson.output?.[0]
+          if (out) {
+            console.log('[AI Convert] Replicate success')
+            return out as string
+          }
+          return null
+        }
+        if (pollJson?.status === 'failed' || pollJson?.status === 'canceled') {
+          console.warn('[AI Convert] Replicate failed status:', pollJson?.status)
+          return null
+        }
+        await delay(1500)
+      }
 
-        const dalle3Url = dalle3Response.data[0].url
-        console.log('[AI Convert] ✅ DALL-E 3 Created!')
-        console.log('[AI Convert] 🌈 DALL-E RAW URL:', dalle3Url)
-        console.log('[AI Convert] 🎨 Resizing to 64x64 (NO post-processing - preserve DALL-E colors)...')
-        
-        // ========================================
-        // SIMPLE RESIZE ONLY - NO POST-PROCESSING (preserve DALL-E colors)
-        // ========================================
-        const response = await fetch(dalle3Url)
-        const arrayBuffer = await response.arrayBuffer()
-        const inputBuffer = Buffer.from(arrayBuffer)
-        
-        // Resize to 64x64 with nearest-neighbor (preserve colors)
-        // Use 'cover' + 'center' to crop to character only (remove color palette)
-        const pixelArtBuffer = await sharp(inputBuffer)
-          .resize(64, 64, {
-            kernel: 'nearest',
-            fit: 'cover', // CROP to remove bottom color palette
-            position: 'top', // Focus on top (character, not bottom palette)
-            background: { r: 0, g: 0, b: 0, alpha: 0 }
-          })
-          .png()
-          .toBuffer()
-        
-        // Convert buffer to base64 data URL for client
-        const base64 = pixelArtBuffer.toString('base64')
-        const dataUrl = `data:image/png;base64,${base64}`
-        
-        console.log('[AI Convert] ✅ RESIZE COMPLETE! 64x64 pixel art (DALL-E colors preserved)!')
+      console.warn('[AI Convert] Replicate timed out')
+      return null
+    }
 
-        return NextResponse.json({
-          success: true,
-          convertedImageUrl: dataUrl,
-          method: 'dalle3-plus-postprocessing-3dprint',
-          model: 'dall-e-3 + sharp-3dprint-quantization',
-          originalPrompt: userPrompt,
-          visionAnalysis: imageDescription,
-          promptUsed: simplePrompt,
-          info: 'DALL-E 3 + 3D PRINT post-processing: 64x64, 12 colors, 2px outline, big blocks',
+    // 1) If requested, try Replicate first
+    if (preferReplicate) {
+      convertedImageUrl = await tryReplicate()
+      if (convertedImageUrl) providerUsed = 'replicate'
+    }
+
+    // 2) OpenAI edit with image+mask (primary path when available)
+    if (!convertedImageUrl && openaiKey) {
+      try {
+        console.log('[AI Convert] Calling OpenAI Images API edit (gpt-image-1, img2img)...')
+        const editResponse = await openai.images.edit({
+          model: 'gpt-image-1',
+          prompt: finalPrompt,
+          size: '1024x1024',
+          image: imageFile,
+          mask: maskFile,
+          n: 1,
         })
-      } catch (dalle3Error: any) {
-        console.error('[AI Convert] ❌ DALL-E 3 + Post-Processing failed:', dalle3Error)
-        throw new Error(`DALL-E 3 + Post-Processing failed: ${dalle3Error.message}`)
+
+        const choice = editResponse.data?.[0]
+        if (choice?.url) {
+          convertedImageUrl = choice.url
+        } else if (choice?.b64_json) {
+          convertedImageUrl = `data:image/png;base64,${choice.b64_json}`
+        } else {
+          convertedImageUrl = null
+        }
+        if (convertedImageUrl) providerUsed = 'openai-edit'
+      } catch (err: any) {
+        console.warn('[AI Convert] OpenAI edit failed, will try Replicate...', err?.message || err)
       }
     }
 
-    console.log('[AI Convert] ✅ SUCCESS! Stable Diffusion pixel art generated')
+    // 3) Replicate fallback if OpenAI path failed
+    if (!convertedImageUrl) {
+      convertedImageUrl = await tryReplicate()
+      if (convertedImageUrl) providerUsed = 'replicate'
+    }
+
+    if (!convertedImageUrl) {
+      throw new Error('No image URL returned from providers')
+    }
+
+    console.log('[AI Convert] ✅ SUCCESS! Image-to-image transformation completed')
     console.log('[AI Convert] Output URL:', convertedImageUrl)
+
+    // POST-PROCESSING: Convert to true 64x64 pixel art with nearest-neighbor
+    console.log('[AI Convert] Post-processing: Converting to 64x64 pixel art...')
+    let finalImageUrl = convertedImageUrl
+
+    try {
+      // Download the AI output
+      const aiImageRes = await fetch(convertedImageUrl.startsWith('data:') 
+        ? convertedImageUrl 
+        : convertedImageUrl)
+      
+      let aiImageBuffer: Buffer
+      if (convertedImageUrl.startsWith('data:image/png;base64,')) {
+        // Already base64
+        const b64 = convertedImageUrl.replace(/^data:image\/png;base64,/, '')
+        aiImageBuffer = Buffer.from(b64, 'base64')
+      } else {
+        // Fetch from URL
+        aiImageBuffer = Buffer.from(await aiImageRes.arrayBuffer())
+      }
+
+      // Resize to 64x64 with nearest-neighbor to preserve blocky pixels
+      let pixelArtBuffer = await sharp(aiImageBuffer)
+        .resize(64, 64, {
+          kernel: 'nearest',
+          fit: 'cover',
+          position: 'center', // Center the character
+        })
+        .png()
+        .toBuffer()
+
+      console.log('[AI Convert] 64x64 resize complete, applying cleanup...')
+
+      // CLEANUP: Aggressive background removal + Island removal + tone flattening
+      // Read pixel data
+      const { data, info } = await sharp(pixelArtBuffer)
+        .raw()
+        .toBuffer({ resolveWithObject: true })
+
+      const width = info.width
+      const height = info.height
+      const channels = info.channels
+
+      // Helper: Get pixel at (x, y)
+      const getPixel = (x: number, y: number) => {
+        if (x < 0 || x >= width || y < 0 || y >= height) return null
+        const idx = (y * width + x) * channels
+        return {
+          r: data[idx],
+          g: data[idx + 1],
+          b: data[idx + 2],
+          a: channels === 4 ? data[idx + 3] : 255,
+        }
+      }
+
+      // Helper: Set pixel at (x, y)
+      const setPixel = (x: number, y: number, r: number, g: number, b: number, a: number) => {
+        const idx = (y * width + x) * channels
+        data[idx] = r
+        data[idx + 1] = g
+        data[idx + 2] = b
+        if (channels === 4) data[idx + 3] = a
+      }
+
+      // 0) SMART BACKGROUND REMOVAL: Flood fill from edges (only remove edge gray pixels)
+      console.log('[AI Convert] Smart background removal (flood fill from edges)...')
+      const visited = new Set<string>()
+      const toRemove = new Set<string>()
+      
+      // Flood fill from all 4 edges to find connected background pixels
+      const floodFill = (startX: number, startY: number) => {
+        const stack: [number, number][] = [[startX, startY]]
+        
+        while (stack.length > 0) {
+          const [x, y] = stack.pop()!
+          const key = `${x},${y}`
+          
+          if (visited.has(key)) continue
+          if (x < 0 || x >= width || y < 0 || y >= height) continue
+          
+          const p = getPixel(x, y)
+          if (!p) continue
+          
+          visited.add(key)
+          
+          // Check if this pixel is "background-like" (grayish and light)
+          const brightness = (p.r + p.g + p.b) / 3
+          const isGrayish = Math.abs(p.r - p.g) < 40 && Math.abs(p.g - p.b) < 40
+          
+          // If bright AND grayish, it's background - mark for removal and continue flood
+          if (brightness > 140 && isGrayish) {
+            toRemove.add(key)
+            // Continue flooding to neighbors
+            stack.push([x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1])
+          }
+          // Otherwise it's character - stop flooding in this direction
+        }
+      }
+      
+      // Start flood fill from all 4 edges
+      for (let x = 0; x < width; x++) {
+        floodFill(x, 0)              // Top edge
+        floodFill(x, height - 1)      // Bottom edge
+      }
+      for (let y = 0; y < height; y++) {
+        floodFill(0, y)              // Left edge
+        floodFill(width - 1, y)      // Right edge
+      }
+      
+      // Remove marked pixels
+      for (const key of toRemove) {
+        const [x, y] = key.split(',').map(Number)
+        setPixel(x, y, 0, 0, 0, 0)
+      }
+      
+      console.log(`[AI Convert] Removed ${toRemove.size} background pixels`)
+
+      // 1) Island removal: Remove 1-3 pixel isolated regions
+      console.log('[AI Convert] Removing pixel islands...')
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const p = getPixel(x, y)
+          if (!p || p.a < 128) continue // Skip transparent
+
+          // Check 4-neighbors
+          const neighbors = [
+            getPixel(x - 1, y),
+            getPixel(x + 1, y),
+            getPixel(x, y - 1),
+            getPixel(x, y + 1),
+          ]
+
+          const solidNeighbors = neighbors.filter(n => n && n.a >= 128)
+          
+          // If isolated (0-1 neighbors), make transparent
+          if (solidNeighbors.length <= 1) {
+            setPixel(x, y, 0, 0, 0, 0)
+          }
+        }
+      }
+
+      // 2) Tone flattening: Merge similar colors within tolerance (ULTRA AGGRESSIVE)
+      console.log('[AI Convert] Flattening similar tones (tolerance: 80 - ULTRA AGGRESSIVE)...')
+      const colorMap = new Map<string, { r: number; g: number; b: number; count: number }>()
+      
+      // Build color histogram
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const p = getPixel(x, y)
+          if (!p || p.a < 128) continue
+          const key = `${p.r},${p.g},${p.b}`
+          const existing = colorMap.get(key)
+          if (existing) {
+            existing.count++
+          } else {
+            colorMap.set(key, { r: p.r, g: p.g, b: p.b, count: 1 })
+          }
+        }
+      }
+
+      // Merge similar colors (tolerance = 80 - çok agresif)
+      const tolerance = 80  // Her parça tek renk olsun diye çok yüksek
+      const mergedColors = new Map<string, string>() // original -> merged
+      
+      const colors = Array.from(colorMap.entries()).sort((a, b) => b[1].count - a[1].count)
+      
+      for (let i = 0; i < colors.length; i++) {
+        const [key1, color1] = colors[i]
+        if (mergedColors.has(key1)) continue
+        
+        for (let j = i + 1; j < colors.length; j++) {
+          const [key2, color2] = colors[j]
+          if (mergedColors.has(key2)) continue
+          
+          const dist = Math.sqrt(
+            Math.pow(color1.r - color2.r, 2) +
+            Math.pow(color1.g - color2.g, 2) +
+            Math.pow(color1.b - color2.b, 2)
+          )
+          
+          if (dist < tolerance) {
+            mergedColors.set(key2, key1) // Merge color2 into color1
+          }
+        }
+      }
+
+      // Apply color merges
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const p = getPixel(x, y)
+          if (!p || p.a < 128) continue
+          
+          const key = `${p.r},${p.g},${p.b}`
+          const merged = mergedColors.get(key)
+          if (merged) {
+            const [r, g, b] = merged.split(',').map(Number)
+            setPixel(x, y, r, g, b, p.a)
+          }
+        }
+      }
+
+      // Write cleaned buffer back
+      pixelArtBuffer = await sharp(data, {
+        raw: {
+          width,
+          height,
+          channels,
+        },
+      })
+        .png()
+        .toBuffer()
+
+      // Convert back to base64 data URL
+      finalImageUrl = `data:image/png;base64,${pixelArtBuffer.toString('base64')}`
+      console.log('[AI Convert] Post-processing complete: 64x64 pixel art with cleanup')
+    } catch (postErr: any) {
+      console.warn('[AI Convert] Post-processing failed, returning original:', postErr?.message)
+      // Keep original if post-processing fails
+    }
 
     return NextResponse.json({
       success: true,
-      convertedImageUrl,
-      method: 'stable-diffusion-via-replicate',
-      originalPrompt: userPrompt,
-      visionAnalysis: imageDescription,
-      model: 'stability-ai/stable-diffusion',
-      promptUsed: pixelArtPrompt.substring(0, 200) + '...',
+      convertedImageUrl: finalImageUrl,
+      method: providerUsed || 'unknown',
+      originalPrompt: prompt,
     })
   } catch (error: any) {
     console.error('[AI Convert] ❌ Error:', error)
@@ -776,23 +484,11 @@ Style: Simple iconic 8-bit sprite (like early NES games). Large blocky shapes, t
       status: error.status,
     })
 
-    // Handle specific errors
-    if (error.message?.includes('REPLICATE_API_TOKEN')) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Replicate API token not configured',
-          details: 'Please set REPLICATE_API_TOKEN environment variable',
-        },
-        { status: 500 }
-      )
-    }
-
     if (error.code === 'content_policy_violation') {
       return NextResponse.json(
         { 
           success: false,
-          error: 'Görsel içeriği politikalara uygun değil',
+          error: 'Görsel içeriği OpenAI politikalarına uygun değil',
           details: error.message,
         },
         { status: 400 }
@@ -807,6 +503,17 @@ Style: Simple iconic 8-bit sprite (like early NES games). Large blocky shapes, t
           details: error.message,
         },
         { status: 429 }
+      )
+    }
+
+    if (error.code === 'invalid_api_key') {
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'API key geçersiz',
+          details: 'Lütfen OPENAI_API_KEY ortam değişkenini kontrol edin',
+        },
+        { status: 401 }
       )
     }
 

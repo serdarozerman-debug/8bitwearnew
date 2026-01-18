@@ -111,8 +111,6 @@ export default function CustomDesignEditor({
   productColor = 'white',
   onSave 
 }: CustomDesignEditorProps) {
-  console.log('[CustomDesignEditor] Props received:', { productImage, productName, productColor })
-  
   const [elements, setElements] = useState<DesignElement[]>([])
   const [selectedElement, setSelectedElement] = useState<string | null>(null)
   const [showColorPicker, setShowColorPicker] = useState(false)
@@ -181,20 +179,7 @@ export default function CustomDesignEditor({
             },
             body: JSON.stringify({
               imageUrl,
-              prompt: `STRICT PIXEL ART CONVERSION - NO ARTISTIC FREEDOM:
-
-HARD CONSTRAINTS (MUST FOLLOW):
-1. 64x64 pixel sprite aesthetic - LARGE blocky pixels visible
-2. FLAT COLORS ONLY - Each element uses EXACTLY ONE solid color
-3. Black outlines around all shapes
-4. Maximum 16 colors total
-5. Hair: ONE rounded blob mass (no strands, no detail)
-6. NO shading, NO highlights, NO gradients, NO texture
-7. Transparent background (PNG with alpha)
-8. Simplified iconic shapes only
-
-Subject from uploaded photo must be recognizable but ICONIFIED.
-This is a technical specification, not decorative art.`,
+              prompt: 'Use uploaded photo as reference. Keep silhouette and pose. Single character. 64x64 pixel-art sprite, flat solid colors only, one color per area, black outlines, max 16 colors, hair one rounded blob, transparent background, no shading/highlights/gradients/texture.',
             }),
           })
 
@@ -221,40 +206,13 @@ This is a technical specification, not decorative art.`,
             setSelectedElement(tempId)
             toast.success('✨ Pixel art dönüşümü tamamlandı!', { id: 'ai-conversion' })
           } else {
-            // ❌ Başarısız - Orijinal görseli kullan
+            // ❌ Başarısız - görsel ekleme yok
             console.warn('[Upload] AI conversion failed:', data.error)
-            
-            const newElement: DesignElement = {
-              id: tempId,
-              type: 'image',
-              position: { x: 50, y: 50 },
-              imageUrl,
-              imageWidth: 200,
-              imageHeight: 200,
-              rotation: 0,
-            }
-            
-            setElements(prev => [...prev, newElement])
-            setSelectedElement(tempId)
-            toast.error(`❌ AI dönüşümü başarısız: ${data.error}`, { id: 'ai-conversion' })
+            toast.error(`❌ AI dönüşümü başarısız: ${data.error || 'Bilinmeyen hata'}`, { id: 'ai-conversion' })
           }
         } catch (error: any) {
           console.error('[Upload] AI conversion error:', error)
-          
-          // Hata durumunda orijinal görseli kullan
-          const newElement: DesignElement = {
-            id: tempId,
-            type: 'image',
-            position: { x: 50, y: 50 },
-            imageUrl,
-            imageWidth: 200,
-            imageHeight: 200,
-            rotation: 0,
-          }
-          
-          setElements(prev => [...prev, newElement])
-          setSelectedElement(tempId)
-          toast.error('❌ Bağlantı hatası, orijinal görsel eklendi', { id: 'ai-conversion' })
+          toast.error('❌ AI dönüşümü sırasında hata oluştu', { id: 'ai-conversion' })
         }
       }
       
@@ -347,6 +305,7 @@ This is a technical specification, not decorative art.`,
   }
 
   const selectedEl = elements.find(el => el.id === selectedElement)
+  const mockupImage = productImage || 'https://placehold.co/600x700/cccccc/222222?text=T-Shirt+Mockup'
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-full min-h-screen bg-gray-50 p-6">
@@ -466,7 +425,7 @@ This is a technical specification, not decorative art.`,
               className={`flex-1 py-2 rounded-lg border-2 font-bold transition ${
                 fontWeight === 'bold'
                   ? 'bg-purple-600 text-white border-purple-600'
-                  : 'border-gray-300 hover:border-purple-600 text-gray-900'
+                  : 'border-gray-300 hover:border-purple-600'
               }`}
             >
               B
@@ -476,7 +435,7 @@ This is a technical specification, not decorative art.`,
               className={`flex-1 py-2 rounded-lg border-2 italic transition ${
                 fontStyle === 'italic'
                   ? 'bg-purple-600 text-white border-purple-600'
-                  : 'border-gray-300 hover:border-purple-600 text-gray-900'
+                  : 'border-gray-300 hover:border-purple-600'
               }`}
             >
               I
@@ -494,7 +453,7 @@ This is a technical specification, not decorative art.`,
         {/* Seçili Element Düzenleme */}
         {selectedEl && (
           <div className="bg-white rounded-xl p-4 shadow-md">
-            <h3 className="font-bold text-lg mb-3">Seçili Element</h3>
+            <h3 className="font-bold text-lg mb-3 text-gray-900">Seçili Element</h3>
             
             {selectedEl.type === 'image' && (
               <div className="space-y-2">
@@ -579,19 +538,17 @@ This is a technical specification, not decorative art.`,
             style={{ 
               width: '600px', 
               height: '700px',
-              backgroundImage: productImage ? `url(${productImage})` : undefined,
-              backgroundSize: 'contain',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat',
-              backgroundColor: productImage ? '#f3f4f6' : '#e5e7eb', // Lighter gray for visibility
+              backgroundColor: '#f8fafc',
             }}
           >
-            {/* DEBUG: Show product image URL */}
-            {!productImage && (
-              <div className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 text-xs rounded">
-                ⚠️ productImage is empty!
-              </div>
-            )}
+            {/* Base T-shirt Mockup (her zaman görünür) */}
+            <img
+              src={mockupImage}
+              alt="T-shirt mockup"
+              className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none drop-shadow-md"
+              draggable={false}
+            />
+
             {/* Design Elements */}
             {elements.map(element => {
               return (
@@ -605,19 +562,6 @@ This is a technical specification, not decorative art.`,
               )
             })}
 
-            {/* Yardım Metni */}
-            {elements.length === 0 && (
-              <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-center p-8 pointer-events-none">
-                <div>
-                  <p className="text-lg font-medium mb-2">
-                    Soldaki araçları kullanarak tasarımınızı oluşturun
-                  </p>
-                  <p className="text-sm">
-                    Görsel yükleyin veya metin ekleyin, ardından fareyle sürükleyerek konumlandırın
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
         </DndContext>
 

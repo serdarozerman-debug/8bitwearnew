@@ -1,0 +1,181 @@
+import { NextRequest, NextResponse } from 'next/server'
+import OpenAI from 'openai'
+import Replicate from 'replicate'
+
+export const runtime = 'nodejs'
+export const maxDuration = 120
+export const dynamic = 'force-dynamic'
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  maxRetries: 3,
+  timeout: 120000,
+})
+
+const replicate = new Replicate({
+  auth: process.env.REPLICATE_API_TOKEN,
+})
+
+export async function POST(req: NextRequest) {
+  try {
+    const { imageUrl, prompt: userPrompt } = await req.json()
+
+    if (!imageUrl || !userPrompt) {
+      return NextResponse.json(
+        { error: 'imageUrl and prompt are required' },
+        { status: 400 }
+      )
+    }
+
+    console.log('[AI Convert] 🎨 PRODUCTION PIPELINE: GPT-4o Vision → Stable Diffusion')
+    console.log('[AI Convert] User prompt:', userPrompt)
+    console.log('[AI Convert] Replicate token present:', !!process.env.REPLICATE_API_TOKEN)
+
+    // ========================================
+    // STEP 1: GPT-4o Vision Analysis
+    // ========================================
+    console.log('[AI Convert] 📸 STEP 1: Analyzing image with GPT-4o Vision...')
+    
+    const visionResponse = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      max_tokens: 200,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: `Describe this person for a retro pixel art sprite conversion. Focus on:
+- Hair: shape and color (describe as ONE rounded solid mass, no strands)
+- Face: skin tone, basic features (eyes, mouth - keep simple)
+- Clothing: main color and type
+- Pose: body position and gesture
+- Overall: age/build
+
+Be concise and structural. Describe colors precisely (e.g., "brown", "light beige", "blue"). Max 80 words.`,
+            },
+            {
+              type: 'image_url',
+              image_url: {
+                url: imageUrl,
+                detail: 'low',
+              },
+            },
+          ],
+        },
+      ],
+    })
+
+    const imageDescription = visionResponse.choices[0]?.message?.content
+
+    if (!imageDescription) {
+      throw new Error('No description from GPT-4o Vision')
+    }
+
+    console.log('[AI Convert] 📝 Vision Analysis:', imageDescription)
+
+    // ========================================
+    // STEP 2: Stable Diffusion Generation
+    // ========================================
+    console.log('[AI Convert] 🎮 STEP 2: Generating pixel art with Stable Diffusion...')
+
+    // PRODUCTION-READY PIXEL ART PROMPT
+    const pixelArtPrompt = `pixel art sprite, 64x64 retro game character, 8-bit style, flat colors, single solid color per area, black outlines, no gradients, no shading, no anti-aliasing, blocky pixels, retro video game aesthetic, transparent background, simple geometric shapes, ${imageDescription}, ${userPrompt}`
+
+    const negativePrompt = 'realistic, photograph, 3d render, smooth, gradient, shading, shadow, highlight, anti-aliasing, blur, detailed, complex, modern, hd'
+
+    console.log('[AI Convert] 📝 Pixel Art Prompt (length:', pixelArtPrompt.length, '):', pixelArtPrompt.substring(0, 100) + '...')
+
+    // REPLICATE: Stable Diffusion (verified working in terminal)
+    console.log('[AI Convert] 🚀 Calling Replicate Stable Diffusion...')
+    const output = await replicate.run(
+      "stability-ai/stable-diffusion:db21e45d3f7023abc2a46ee38a23973f6dce16bb082a930b0c49861f96d1e5bf",
+      {
+        input: {
+          prompt: pixelArtPrompt,
+          negative_prompt: negativePrompt,
+          width: 512,
+          height: 512,
+          num_outputs: 1,
+          num_inference_steps: 50,
+          guidance_scale: 7.5,
+        },
+      }
+    )
+
+    console.log('[AI Convert] 📦 Replicate output type:', typeof output, Array.isArray(output) ? 'array' : 'other')
+    console.log('[AI Convert] 📦 Replicate output:', output)
+
+    // Replicate returns array of URLs
+    const convertedImageUrl = Array.isArray(output) ? output[0] : output
+
+    if (!convertedImageUrl) {
+      throw new Error('No image URL returned from Replicate Stable Diffusion')
+    }
+
+    console.log('[AI Convert] ✅ SUCCESS! Stable Diffusion pixel art generated')
+    console.log('[AI Convert] Output URL:', convertedImageUrl)
+
+    return NextResponse.json({
+      success: true,
+      convertedImageUrl,
+      method: 'stable-diffusion-via-replicate',
+      originalPrompt: userPrompt,
+      visionAnalysis: imageDescription,
+      model: 'stability-ai/stable-diffusion',
+      promptUsed: pixelArtPrompt.substring(0, 200) + '...',
+    })
+  } catch (error: any) {
+    console.error('[AI Convert] ❌ Error:', error)
+    console.error('[AI Convert] Error details:', {
+      message: error.message,
+      code: error.code,
+      type: error.type,
+      status: error.status,
+    })
+
+    // Handle specific errors
+    if (error.message?.includes('REPLICATE_API_TOKEN')) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Replicate API token not configured',
+          details: 'Please set REPLICATE_API_TOKEN environment variable',
+        },
+        { status: 500 }
+      )
+    }
+
+    if (error.code === 'content_policy_violation') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Görsel içeriği politikalara uygun değil',
+          details: error.message,
+        },
+        { status: 400 }
+      )
+    }
+
+    if (error.code === 'rate_limit_exceeded') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'API limiti aşıldı, lütfen biraz bekleyin',
+          details: error.message,
+        },
+        { status: 429 }
+      )
+    }
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: error.message || 'Görsel dönüştürülemedi',
+        code: error.code,
+        type: error.type,
+      },
+      { status: 500 }
+    )
+  }
+}
