@@ -17,18 +17,12 @@ async function convertToRealPixelArt(imageUrl: string): Promise<Buffer> {
   const meta = await sharp(inputBuffer).metadata()
   const hasAlpha = !!meta.hasAlpha
   
-  // STEP 0.5: AUTO-CROP TO LARGEST OPAQUE REGION (eliminate duplicates/mirrors)
-  // Only if the source already has alpha; if not, skip cropping to avoid "fake transparency"
+  // STEP 0.5: NO CROP (input character is already centered)
+  console.log('[PixelArt] ✂️  Skipping center crop (character is already centered in input)')
   let cropped = inputBuffer
-  if (hasAlpha) {
-    console.log('[PixelArt] ✂️  Auto-cropping to largest opaque region (alpha detected)...')
-    cropped = await autoCropToLargestRegion(inputBuffer)
-  } else {
-    console.log('[PixelArt] ✂️  Skipping auto-crop (no alpha in source, keep full frame)')
-  }
   
   // STEP 1: Resize to 64x64 with nearest-neighbor (NO interpolation!)
-  console.log('[PixelArt] 📐 Resizing to 64x64 (nearest-neighbor)...')
+  console.log('[PixelArt] 📐 Resizing to 64x64 (nearest-neighbor, 3D PRINT OPTIMIZED)...')
   let base = sharp(cropped)
   // If no alpha, force full opaque alpha so mask is 255 everywhere
   if (!hasAlpha) {
@@ -38,7 +32,7 @@ async function convertToRealPixelArt(imageUrl: string): Promise<Buffer> {
   }
 
   const resized = await base
-    .resize(128, 128, {
+    .resize(64, 64, { // 3D BASKI: 64x64 (büyük pikseller)
       kernel: 'nearest', // CRITICAL: no smoothing
       fit: 'cover', // CROP to fill (not contain) - ensures single character
       position: 'center',
@@ -78,9 +72,9 @@ async function convertToRealPixelArt(imageUrl: string): Promise<Buffer> {
     }
   }
   
-  // STEP 3: QUANTIZE TO ≤32 COLORS (richer palette, better detail)
-  console.log('[PixelArt] 🎨 Quantizing to ≤32 colors (richer palette)...')
-  const palette = extractPaletteAlphaSafe(rgbData, alphaMask, 32)
+  // STEP 3: QUANTIZE TO ≤32 COLORS (preserve DALL-E color variety)
+  console.log('[PixelArt] 🎨 Quantizing to ≤32 colors (preserve variety)...')
+  const palette = extractPaletteAlphaSafe(rgbData, alphaMask, 32) // RENK ÇEŞITLILIĞI: 16 → 32
   const quantized = Buffer.from(rgbData) // Clone
   
   for (let i = 0; i < data.length; i += 4) {
@@ -111,17 +105,17 @@ async function convertToRealPixelArt(imageUrl: string): Promise<Buffer> {
     quantized[i + 2] = bestColor[2]
   }
   
-  // STEP 3.5: TONE FLATTEN (merge similar shades) - SOFTER for 128x128
-  console.log('[PixelArt] 🎭 Tone flattening (softer, preserve detail)...')
-  const flattened = toneFlattening(quantized, alphaMask, width, height, 60) // Softer: 40 → 60
+  // STEP 3.5: TONE FLATTEN - DISABLED (preserving DALL-E 3 colors)
+  console.log('[PixelArt] 🎭 SKIPPING tone flattening (preserve DALL-E colors)...')
+  const flattened = quantized // NO FLATTENING
   
-  // STEP 4: REGION MERGE (gentler for 128x128, preserve features)
-  console.log('[PixelArt] 🔗 Merging color regions (gentle, preserve features)...')
-  const merged = regionMergeStrong(flattened, alphaMask, width, height)
+  // STEP 4: REGION MERGE - DISABLED (preserving DALL-E 3 colors)
+  console.log('[PixelArt] 🔗 SKIPPING region merge (preserve DALL-E colors)...')
+  const merged = flattened // NO MERGE
   
-  // STEP 5: ADD 1PX BLACK OUTLINE (based on alpha mask edges)
-  console.log('[PixelArt] 🖊️  Adding black outlines (1px)...')
-  const outlined = addOutlineAlphaSafe(merged, alphaMask, width, height)
+  // STEP 5: ADD 2PX THICK BLACK OUTLINE (3D PRINT: bold outlines)
+  console.log('[PixelArt] 🖊️  Adding THICK black outlines (2px for 3D print)...')
+  const outlined = addThickOutlineAlphaSafe(merged, alphaMask, width, height, 2) // 3D BASKI: 2px kalın
   
   // STEP 6: RESTORE ALPHA (transparent background - NO BLUE FILL)
   console.log('[PixelArt] 🎭 Restoring alpha (transparent PNG for printing)...')
@@ -204,6 +198,30 @@ async function autoCropToLargestRegion(inputBuffer: Buffer): Promise<Buffer> {
     .toBuffer()
 }
 
+// CENTER CROP: Take center 40% of image (isolates single character from lineup)
+async function centerCropToSingleCharacter(inputBuffer: Buffer): Promise<Buffer> {
+  const meta = await sharp(inputBuffer).metadata()
+  const width = meta.width || 512
+  const height = meta.height || 512
+  
+  // Calculate center crop (40% width, 60% height to focus on face/upper body)
+  const cropWidth = Math.round(width * 0.4)
+  const cropHeight = Math.round(height * 0.6)
+  const left = Math.round((width - cropWidth) / 2)
+  const top = Math.round((height - cropHeight) / 2)
+  
+  console.log(`[PixelArt] ✂️  Center crop: ${width}x${height} → ${cropWidth}x${cropHeight} (isolating center character)`)
+  
+  return await sharp(inputBuffer)
+    .extract({
+      left,
+      top,
+      width: cropWidth,
+      height: cropHeight
+    })
+    .toBuffer()
+}
+
 // Extract dominant colors (ALPHA-SAFE: skip transparent pixels)
 function extractPaletteAlphaSafe(data: Buffer, alphaMask: Uint8Array, maxColors: number): number[][] {
   const colorCounts = new Map<string, number>()
@@ -270,7 +288,7 @@ function toneFlattening(data: Buffer, alphaMask: Uint8Array, width: number, heig
       }
       
       // Average similar colors (flattens tones)
-      if (count >= 3) { // If at least 2 neighbors are similar
+      if (count >= 2) { // 3D BASKI: daha agresif (was 3)
         result[i] = Math.round(sumR / count)
         result[i + 1] = Math.round(sumG / count)
         result[i + 2] = Math.round(sumB / count)
@@ -315,9 +333,9 @@ function regionMergeStrong(data: Buffer, alphaMask: Uint8Array, width: number, h
         const ng = data[ni + 1]
         const nb = data[ni + 2]
         
-        // If very similar color (GENTLER threshold for 128x128)
+        // If very similar color (MODERATE threshold for 3D PRINT + COLOR)
         const diff = Math.abs(r - nr) + Math.abs(g - ng) + Math.abs(b - nb)
-        if (diff < 40) { // Gentler merging (was 20)
+        if (diff < 25) { // 3D BASKI: orta seviye merge (renk koruyucu)
           sameColorCount++
           avgR += nr
           avgG += ng
@@ -365,7 +383,7 @@ function regionMergeStrong(data: Buffer, alphaMask: Uint8Array, width: number, h
         const nb = result[ni + 2]
         
         const diff = Math.abs(r - nr) + Math.abs(g - ng) + Math.abs(b - nb)
-        if (diff > 40) { // Gentler: preserve features (was 20)
+        if (diff > 25) { // 3D BASKI: moderate island removal (renk koruyucu)
           differentCount++
           majorityR += nr
           majorityG += ng
@@ -413,6 +431,92 @@ function addOutlineAlphaSafe(data: Buffer, alphaMask: Uint8Array, width: number,
         }
       }
     }
+  }
+  
+  return result
+}
+
+// ADD THICK BLACK OUTLINE (for 3D print - 2px or more)
+function addThickOutlineAlphaSafe(data: Buffer, alphaMask: Uint8Array, width: number, height: number, thickness: number = 2): Buffer {
+  const result = Buffer.from(data)
+  
+  // First pass: mark all edge pixels (distance 1 from transparent)
+  const edgePixels = new Set<number>()
+  
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = y * width + x
+      
+      // If pixel is opaque
+      if (alphaMask[i] === 255) {
+        // Check 8-neighbors for transparent pixels
+        let hasTransparentNeighbor = false
+        
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (dx === 0 && dy === 0) continue
+            
+            const nx = x + dx
+            const ny = y + dy
+            
+            if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+              const ni = ny * width + nx
+              if (alphaMask[ni] === 0) {
+                hasTransparentNeighbor = true
+                break
+              }
+            }
+          }
+          if (hasTransparentNeighbor) break
+        }
+        
+        if (hasTransparentNeighbor) {
+          edgePixels.add(i)
+        }
+      }
+    }
+  }
+  
+  // Second pass: expand edge inward by (thickness - 1) pixels
+  const outlinePixels = new Set<number>(edgePixels)
+  
+  for (let t = 1; t < thickness; t++) {
+    const newOutlinePixels = new Set<number>(outlinePixels)
+    
+    for (const pixelIndex of outlinePixels) {
+      const x = pixelIndex % width
+      const y = Math.floor(pixelIndex / width)
+      
+      // Add 4-neighbors
+      const neighbors = [
+        { nx: x, ny: y - 1 },
+        { nx: x, ny: y + 1 },
+        { nx: x - 1, ny: y },
+        { nx: x + 1, ny: y },
+      ]
+      
+      for (const { nx, ny } of neighbors) {
+        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+          const ni = ny * width + nx
+          if (alphaMask[ni] === 255) { // Only expand into opaque pixels
+            newOutlinePixels.add(ni)
+          }
+        }
+      }
+    }
+    
+    outlinePixels.clear()
+    for (const p of newOutlinePixels) {
+      outlinePixels.add(p)
+    }
+  }
+  
+  // Final pass: paint all outline pixels black
+  for (const pixelIndex of outlinePixels) {
+    const i = pixelIndex * 4
+    result[i] = 0     // Black
+    result[i + 1] = 0
+    result[i + 2] = 0
   }
   
   return result
@@ -467,20 +571,20 @@ export async function POST(req: NextRequest) {
 
     const visionResponse = await openai.chat.completions.create({
       model: 'gpt-4o',
-      max_tokens: 100, // More detailed analysis
+      max_tokens: 80,
       messages: [
         {
           role: 'user',
           content: [
             {
               type: 'text',
-              text: 'Describe this person in detail for illustration: hair (shape, color, style), clothing (type, colors, patterns), pose (sitting/standing, gesture), accessories (headphones, jewelry, etc), age/build. Be specific. Max 30 words.',
+              text: 'Describe this CHARACTER or FIGURE in the image for creating a pixel art sprite: exact hair color and style, skin tone, clothing and colors, accessories, pose, facial expression. Focus on visual appearance only, no identity. Be specific and descriptive. Max 50 words.',
             },
             {
               type: 'image_url',
               image_url: {
-                url: normalizedImageUrl, // Data URL or external URL
-                detail: 'high', // HIGH DETAIL for better analysis
+                url: normalizedImageUrl,
+                detail: 'high',
               },
             },
           ],
@@ -501,18 +605,21 @@ export async function POST(req: NextRequest) {
     // ========================================
     console.log('[AI Convert] 🎮 STEP 2: Generating pixel art with Stable Diffusion...')
 
-    // OPTIMIZED PIXEL ART PROMPT FOR STABLE DIFFUSION
-    const pixelArtPrompt = `pixel art character sprite, 64x64 resolution, retro 8-bit NES style, SNES game graphics, blocky square pixels, flat solid colors only, thick black outlines around all shapes, maximum 16 color palette, no color gradients, no smooth shading, no anti-aliasing, sharp pixel edges, simple geometric forms, transparent PNG background, based on: ${imageDescription.substring(0, 120)}. ${userPrompt.substring(0, 80)}`
+    // ULTRA-FOCUSED PROMPT: SINGLE CHARACTER PORTRAIT (NO MULTIPLE SPRITES)
+    const pixelArtPrompt = `CENTERED CLOSE-UP PORTRAIT of ONE SINGLE CHARACTER filling the entire frame. 8-bit pixel art sprite, 64x64, VIBRANT COLORS (red blue yellow green), large blocky pixels, flat colors, thick black outlines, transparent background. NO MULTIPLE CHARACTERS, NO LINEUP, NO GROUP, JUST ONE CENTERED FACE/BUST. Character: ${imageDescription.substring(0, 50)}`
 
-    const negativePrompt = 'realistic photo, photograph, 3d render, CGI, smooth shading, gradients, soft edges, anti-aliasing, blur, gaussian blur, motion blur, depth of field, shadows, highlights, reflections, detailed textures, high resolution, HD, 4K, modern graphics, complex details, realistic lighting, ambient occlusion'
+    const negativePrompt = 'multiple characters, character lineup, multiple people, side by side characters, group, trio, three characters, duplicates, mirrors, full body, tiny character, realistic, photo, gradients, smooth, detailed, grayscale, monochrome, props, accessories, background objects'
 
     console.log('[AI Convert] 📝 Pixel Art Prompt (length:', pixelArtPrompt.length, '):', pixelArtPrompt.substring(0, 100) + '...')
 
     // REPLICATE: Stable Diffusion (optimized for pixel art)
     console.log('[AI Convert] 🚀 Calling Replicate Stable Diffusion...')
     
-    // Replicate returns an async iterator or array
-    const prediction = await replicate.run(
+    let convertedImageUrl: string | null = null
+    
+    try {
+      // Replicate returns an async iterator or array
+      const prediction = await replicate.run(
       "stability-ai/stable-diffusion:db21e45d3f7023abc2a46ee38a23973f6dce16bb082a930b0c49861f96d1e5bf",
       {
         input: {
@@ -536,7 +643,6 @@ export async function POST(req: NextRequest) {
     // Replicate may return:
     // 1. Array of URLs (direct)
     // 2. Async iterator (for streaming)
-    let convertedImageUrl: string | null = null
     
     if (Array.isArray(prediction) && prediction.length > 0) {
       // Direct array of URLs
@@ -560,30 +666,42 @@ export async function POST(req: NextRequest) {
       convertedImageUrl = prediction
       console.log('[AI Convert] ✅ Got URL as string:', convertedImageUrl)
     }
+    
+    } catch (replicateError: any) {
+      console.warn('[AI Convert] ⚠️ Replicate error (NSFW or other):', replicateError.message)
+      console.log('[AI Convert] 🔄 Falling back to DALL-E 3...')
+      // Continue to fallback below
+    }
 
     if (!convertedImageUrl || typeof convertedImageUrl !== 'string') {
       console.warn('[AI Convert] ⚠️ Replicate returned invalid format. Falling back to DALL-E 3 + POST-PROCESSING...')
       
       // FALLBACK: Use DALL-E 3 + Deterministik Post-Processing
       try {
-        // Simplified prompt for DALL-E 3 (konsept üretimi)
-        // EMPHASIZE: SINGLE character, CLOSE-UP, centered
-        const simplePrompt = `Create a simple single-character illustration based on the uploaded photo.
-IMPORTANT: Only ONE character (not two, not multiple people).
-Close-up portrait view, centered, clean silhouette, front-facing.
-No background, no extra objects, no duplicates, no mirrors.
-Flat simple shapes, no gradients, no shading, no textures, no lighting effects.
-Keep details minimal for pixel art conversion.
-Reference: ${imageDescription}`
+        // DALL-E 3: SIMPLE + COLORFUL (64x64, minimal detail, NO BACKGROUND)
+        const simplePrompt = `Create a simple 8-bit retro video game character sprite, 64x64 pixels, TRANSPARENT BACKGROUND.
+
+Use solid flat colors (one color per body part):
+- Hair: solid dark brown blob
+- Earmuffs: solid beige circles
+- Skin: solid light peach
+- Jacket: solid white simple shape
+- Pants: solid black
+- Shoes: solid bright purple
+
+Character: ${imageDescription}
+
+Style: Simple iconic 8-bit sprite (like early NES games). Large blocky shapes, thick black outlines, flat solid colors, ONE centered character. NO background, NO shading, NO details, NO texture. Transparent background. Simple geometric shapes only.`
         
         console.log('[AI Convert] 📝 DALL-E 3 Prompt (SINGLE char, close-up):', simplePrompt)
         
         const dalle3Response = await openai.images.generate({
           model: 'dall-e-3',
           prompt: simplePrompt,
-          n: 1,
-          size: '1024x1024',
+      n: 1,
+      size: '1024x1024',
           quality: 'hd', // HD quality for better detail
+          style: 'vivid', // VIVID style for more saturated colors (not natural)
           style: 'vivid', // Vivid for richer colors
         })
 
@@ -592,29 +710,44 @@ Reference: ${imageDescription}`
         }
 
         const dalle3Url = dalle3Response.data[0].url
-        console.log('[AI Convert] ✅ DALL-E 3 Konsept Created!')
-        console.log('[AI Convert] 🎨 Starting POST-PROCESSING to real pixel art...')
+        console.log('[AI Convert] ✅ DALL-E 3 Created!')
+        console.log('[AI Convert] 🌈 DALL-E RAW URL:', dalle3Url)
+        console.log('[AI Convert] 🎨 Resizing to 64x64 (NO post-processing - preserve DALL-E colors)...')
         
         // ========================================
-        // CRITICAL: POST-PROCESSING TO REAL PIXEL ART
+        // SIMPLE RESIZE ONLY - NO POST-PROCESSING (preserve DALL-E colors)
         // ========================================
-        const pixelArtBuffer = await convertToRealPixelArt(dalle3Url)
+        const response = await fetch(dalle3Url)
+        const arrayBuffer = await response.arrayBuffer()
+        const inputBuffer = Buffer.from(arrayBuffer)
+        
+        // Resize to 64x64 with nearest-neighbor (preserve colors)
+        // Use 'cover' + 'center' to crop to character only (remove color palette)
+        const pixelArtBuffer = await sharp(inputBuffer)
+          .resize(64, 64, {
+            kernel: 'nearest',
+            fit: 'cover', // CROP to remove bottom color palette
+            position: 'top', // Focus on top (character, not bottom palette)
+            background: { r: 0, g: 0, b: 0, alpha: 0 }
+          })
+          .png()
+          .toBuffer()
         
         // Convert buffer to base64 data URL for client
         const base64 = pixelArtBuffer.toString('base64')
         const dataUrl = `data:image/png;base64,${base64}`
         
-        console.log('[AI Convert] ✅ POST-PROCESSING COMPLETE! Real 64x64 pixel art created!')
+        console.log('[AI Convert] ✅ RESIZE COMPLETE! 64x64 pixel art (DALL-E colors preserved)!')
 
         return NextResponse.json({
           success: true,
           convertedImageUrl: dataUrl,
-          method: 'dalle3-plus-postprocessing',
-          model: 'dall-e-3 + sharp-quantization',
+          method: 'dalle3-plus-postprocessing-3dprint',
+          model: 'dall-e-3 + sharp-3dprint-quantization',
           originalPrompt: userPrompt,
           visionAnalysis: imageDescription,
           promptUsed: simplePrompt,
-          info: 'DALL-E 3 for concept + Deterministik post-processing for real 64x64 pixel art',
+          info: 'DALL-E 3 + 3D PRINT post-processing: 64x64, 12 colors, 2px outline, big blocks',
         })
       } catch (dalle3Error: any) {
         console.error('[AI Convert] ❌ DALL-E 3 + Post-Processing failed:', dalle3Error)
@@ -657,7 +790,7 @@ Reference: ${imageDescription}`
 
     if (error.code === 'content_policy_violation') {
       return NextResponse.json(
-        {
+        { 
           success: false,
           error: 'Görsel içeriği politikalara uygun değil',
           details: error.message,
@@ -668,7 +801,7 @@ Reference: ${imageDescription}`
 
     if (error.code === 'rate_limit_exceeded') {
       return NextResponse.json(
-        {
+        { 
           success: false,
           error: 'API limiti aşıldı, lütfen biraz bekleyin',
           details: error.message,
@@ -678,7 +811,7 @@ Reference: ${imageDescription}`
     }
 
     return NextResponse.json(
-      {
+      { 
         success: false,
         error: error.message || 'Görsel dönüştürülemedi',
         code: error.code,

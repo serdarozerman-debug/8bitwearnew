@@ -1,0 +1,7 @@
+<svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
+  <rect width="400" height="400" fill="#f5f5f5"/>
+  <path d="M 100 100 L 120 80 L 160 80 L 180 100 L 180 300 L 100 300 Z" fill="white" stroke="#333" stroke-width="2"/>
+  <path d="M 300 100 L 280 80 L 240 80 L 220 100 L 220 300 L 300 300 Z" fill="white" stroke="#333" stroke-width="2"/>
+  <rect x="180" y="100" width="40" height="200" fill="white" stroke="#333" stroke-width="2"/>
+  <text x="200" y="220" font-size="14" text-anchor="middle" fill="#999">T-Shirt</text>
+</svg>
