@@ -38,7 +38,7 @@ async function convertToRealPixelArt(imageUrl: string): Promise<Buffer> {
   }
 
   const resized = await base
-    .resize(64, 64, {
+    .resize(128, 128, {
       kernel: 'nearest', // CRITICAL: no smoothing
       fit: 'cover', // CROP to fill (not contain) - ensures single character
       position: 'center',
@@ -78,9 +78,9 @@ async function convertToRealPixelArt(imageUrl: string): Promise<Buffer> {
     }
   }
   
-  // STEP 3: QUANTIZE TO ≤16 COLORS (extract from image, not locked)
-  console.log('[PixelArt] 🎨 Quantizing to ≤16 colors (DALL-E colors preserved)...')
-  const palette = extractPaletteAlphaSafe(rgbData, alphaMask, 16)
+  // STEP 3: QUANTIZE TO ≤32 COLORS (richer palette, better detail)
+  console.log('[PixelArt] 🎨 Quantizing to ≤32 colors (richer palette)...')
+  const palette = extractPaletteAlphaSafe(rgbData, alphaMask, 32)
   const quantized = Buffer.from(rgbData) // Clone
   
   for (let i = 0; i < data.length; i += 4) {
@@ -111,12 +111,12 @@ async function convertToRealPixelArt(imageUrl: string): Promise<Buffer> {
     quantized[i + 2] = bestColor[2]
   }
   
-  // STEP 3.5: TONE FLATTEN (merge similar shades to kill shading) - LESS AGGRESSIVE
-  console.log('[PixelArt] 🎭 Tone flattening (merge similar shades, preserve color strength)...')
-  const flattened = toneFlattening(quantized, alphaMask, width, height, 40) // Increased threshold: less flattening, preserve colors
+  // STEP 3.5: TONE FLATTEN (merge similar shades) - SOFTER for 128x128
+  console.log('[PixelArt] 🎭 Tone flattening (softer, preserve detail)...')
+  const flattened = toneFlattening(quantized, alphaMask, width, height, 60) // Softer: 40 → 60
   
-  // STEP 4: REGION MERGE (stronger: remove small islands, merge same colors)
-  console.log('[PixelArt] 🔗 Merging color regions (stronger, remove islands)...')
+  // STEP 4: REGION MERGE (gentler for 128x128, preserve features)
+  console.log('[PixelArt] 🔗 Merging color regions (gentle, preserve features)...')
   const merged = regionMergeStrong(flattened, alphaMask, width, height)
   
   // STEP 5: ADD 1PX BLACK OUTLINE (based on alpha mask edges)
@@ -315,9 +315,9 @@ function regionMergeStrong(data: Buffer, alphaMask: Uint8Array, width: number, h
         const ng = data[ni + 1]
         const nb = data[ni + 2]
         
-        // If very similar color (stricter threshold for merging)
+        // If very similar color (GENTLER threshold for 128x128)
         const diff = Math.abs(r - nr) + Math.abs(g - ng) + Math.abs(b - nb)
-        if (diff < 20) { // Stricter than before (was 30)
+        if (diff < 40) { // Gentler merging (was 20)
           sameColorCount++
           avgR += nr
           avgG += ng
@@ -365,7 +365,7 @@ function regionMergeStrong(data: Buffer, alphaMask: Uint8Array, width: number, h
         const nb = result[ni + 2]
         
         const diff = Math.abs(r - nr) + Math.abs(g - ng) + Math.abs(b - nb)
-        if (diff > 20) {
+        if (diff > 40) { // Gentler: preserve features (was 20)
           differentCount++
           majorityR += nr
           majorityG += ng
@@ -373,8 +373,8 @@ function regionMergeStrong(data: Buffer, alphaMask: Uint8Array, width: number, h
         }
       }
       
-      // If isolated (all neighbors are different), replace with majority neighbor color
-      if (differentCount >= 3) {
+      // ONLY if ALL 4 neighbors are different (true isolated island)
+      if (differentCount >= 4) {
         result[i] = Math.round(majorityR / differentCount)
         result[i + 1] = Math.round(majorityG / differentCount)
         result[i + 2] = Math.round(majorityB / differentCount)
@@ -467,20 +467,20 @@ export async function POST(req: NextRequest) {
 
     const visionResponse = await openai.chat.completions.create({
       model: 'gpt-4o',
-      max_tokens: 50, // Sadeleştirildi
+      max_tokens: 100, // More detailed analysis
       messages: [
         {
           role: 'user',
           content: [
             {
               type: 'text',
-              text: 'Describe in ONE SHORT SENTENCE: one character, hair color, clothing color, pose. Example: "one person, brown hair, blue shirt, standing". Max 12 words.',
+              text: 'Describe this person in detail for illustration: hair (shape, color, style), clothing (type, colors, patterns), pose (sitting/standing, gesture), accessories (headphones, jewelry, etc), age/build. Be specific. Max 30 words.',
             },
             {
               type: 'image_url',
               image_url: {
                 url: normalizedImageUrl, // Data URL or external URL
-                detail: 'low',
+                detail: 'high', // HIGH DETAIL for better analysis
               },
             },
           ],
@@ -583,8 +583,8 @@ Reference: ${imageDescription}`
           prompt: simplePrompt,
           n: 1,
           size: '1024x1024',
-          quality: 'standard',
-          style: 'natural',
+          quality: 'hd', // HD quality for better detail
+          style: 'vivid', // Vivid for richer colors
         })
 
         if (!dalle3Response.data[0]?.url) {
