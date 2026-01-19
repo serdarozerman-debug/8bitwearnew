@@ -446,7 +446,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
   // Save current angle design
   const saveCurrentAngleDesign = () => {
     const existingIndex = allAngleDesigns.findIndex(d => d.angle === selectedAngle)
-    const angleConfig = availableAngles.find(a => a.key === selectedAngle)
+    const angleConfig = availableAngles.find(a => a.id === selectedAngle)
     const newDesign: AngleDesign = {
       angle: selectedAngle,
       angleName: angleConfig?.name || selectedAngle,
@@ -487,7 +487,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
     
     // Find next available angle
     const usedAngles = allAngleDesigns.map(d => d.angle)
-    const nextAngle = availableAngles.find(a => !usedAngles.includes(a.key))
+    const nextAngle = availableAngles.find(a => !usedAngles.includes(a.id))
     if (nextAngle) {
       setSelectedAngle(nextAngle.key)
       toast.info(`Yeni açı: ${nextAngle.name}`)
