@@ -360,6 +360,8 @@ CRITICAL FEATURES (must be readable): zipper line, collar, earmuff pads, eyes (2
     if (!convertedImageUrl && openaiKey) {
       try {
         console.log('[AI Convert] Calling OpenAI Images API edit (gpt-image-1, img2img, NO MASK)...')
+        console.log('[AI Convert] OpenAI API Key present:', openaiKey ? 'YES (first 10 chars: ' + openaiKey.substring(0, 10) + '...)' : 'NO')
+        
         const editResponse = await openai.images.edit({
           model: 'gpt-image-1',
           image: imageFile,
@@ -368,18 +370,40 @@ CRITICAL FEATURES (must be readable): zipper line, collar, earmuff pads, eyes (2
           n: 1,
         })
 
+        console.log('[AI Convert] OpenAI API Response received:', JSON.stringify({
+          created: editResponse.created,
+          dataLength: editResponse.data?.length,
+          firstChoice: editResponse.data?.[0] ? {
+            hasUrl: !!editResponse.data[0].url,
+            hasB64: !!editResponse.data[0].b64_json,
+            urlPreview: editResponse.data[0].url?.substring(0, 50),
+          } : null
+        }, null, 2))
+
         const choice = editResponse.data?.[0]
         if (choice?.url) {
           convertedImageUrl = choice.url
+          console.log('[AI Convert] ✅ Got image URL from OpenAI (length:', choice.url.length, ')')
         } else if (choice?.b64_json) {
           convertedImageUrl = `data:image/png;base64,${choice.b64_json}`
+          console.log('[AI Convert] ✅ Got base64 image from OpenAI (length:', choice.b64_json.length, ')')
         } else {
           convertedImageUrl = null
+          console.log('[AI Convert] ❌ OpenAI returned NO image data (no url, no b64_json)')
         }
         if (convertedImageUrl) providerUsed = 'openai-edit'
       } catch (err: any) {
-        console.warn('[AI Convert] OpenAI edit failed, will try Replicate...', err?.message || err)
+        console.error('[AI Convert] ❌ OpenAI edit FAILED with error:', {
+          message: err?.message,
+          code: err?.code,
+          type: err?.type,
+          status: err?.status,
+          response: err?.response?.data,
+        })
+        console.warn('[AI Convert] Will try Replicate fallback...')
       }
+    } else if (!openaiKey) {
+      console.warn('[AI Convert] ⚠️ OpenAI API Key NOT configured, skipping OpenAI provider')
     }
 
     // 3) Replicate fallback if OpenAI path failed
