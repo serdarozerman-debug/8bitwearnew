@@ -4,9 +4,10 @@ import { getCargoTracking } from '@/lib/cargo'
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { orderNumber: string } }
+  context: { params: Promise<{ orderNumber: string }> }
 ) {
   try {
+    const params = await context.params
     const { orderNumber } = params
 
     const order = await prisma.order.findUnique({
