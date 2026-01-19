@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
 import { Toaster } from 'sonner'
 import Analytics from '@/components/Analytics'
@@ -26,7 +27,9 @@ export default function RootLayout({
   return (
     <html lang="tr">
       <body className={inter.className}>
-        <Analytics />
+        <Suspense fallback={null}>
+          <Analytics />
+        </Suspense>
         {children}
         <Toaster position="top-center" richColors />
       </body>
