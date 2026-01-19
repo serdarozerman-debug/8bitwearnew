@@ -529,11 +529,11 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
     <div className="min-h-screen bg-gray-50 flex">
       {/* Left Panel */}
       <div className="w-80 bg-white border-r border-gray-200 p-6 overflow-y-auto">
-        <h2 className="text-2xl font-bold mb-6">Tişört Tasarımı</h2>
+        <h2 className="text-2xl font-bold mb-6 text-gray-900">Tişört Tasarımı</h2>
 
         {/* Product Type Selection */}
         <div className="mb-6">
-          <label className="block font-semibold mb-3">Ürün Tipi</label>
+          <label className="block font-semibold mb-3 text-gray-900">Ürün Tipi</label>
           <div className="grid grid-cols-3 gap-2">
             {Object.entries(PRODUCT_ICONS).map(([type, icon]) => {
               const config = PRODUCT_CONFIGS[type as ProductType]
@@ -553,7 +553,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                   }`}
                 >
                   <div className="text-3xl mb-1">{icon}</div>
-                  <div className="text-xs font-medium">{config.name}</div>
+                  <div className="text-xs font-medium text-gray-900">{config.name}</div>
                 </button>
               )
             })}
@@ -562,7 +562,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
 
         {/* Angle Selection */}
         <div className="mb-6">
-          <label className="block font-semibold mb-3">Açı</label>
+          <label className="block font-semibold mb-3 text-gray-900">Açı</label>
           <div className="grid grid-cols-2 gap-2">
             {availableAngles.map((angle) => {
               const isDesigned = allAngleDesigns.some(d => d.angle === angle.id)
@@ -580,7 +580,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                   }`}
                 >
                   <div className="text-2xl mb-1">{ANGLE_ICONS[angle.id] || '📍'}</div>
-                  <div className="text-xs font-medium">{angle.name}</div>
+                  <div className="text-xs font-medium text-gray-900">{angle.name}</div>
                   {isDesigned && (
                     <div className="absolute top-1 right-1 text-green-600">✓</div>
                   )}
@@ -592,7 +592,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
 
         {/* Color Selection */}
         <div className="mb-6">
-          <label className="block font-semibold mb-3">Renk</label>
+          <label className="block font-semibold mb-3 text-gray-900">Renk</label>
           <div className="grid grid-cols-4 gap-2">
             {availableColors.map((color) => (
               <button
@@ -619,13 +619,13 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         {/* Size Selection */}
         {availableSizes.length > 0 && (
           <div className="mb-6">
-            <label className="block font-semibold mb-3">Beden</label>
+            <label className="block font-semibold mb-3 text-gray-900">Beden</label>
             <div className="grid grid-cols-3 gap-2">
               {availableSizes.map((size) => (
                 <button
                   key={size}
                   onClick={() => setSelectedSize(size)}
-                  className={`px-4 py-2 rounded-lg border-2 transition ${
+                  className={`px-4 py-2 rounded-lg border-2 transition text-gray-900 font-medium ${
                     selectedSize === size
                       ? 'border-purple-500 bg-purple-50'
                       : 'border-gray-200 hover:border-purple-300'
@@ -669,7 +669,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
 
         {/* Element List */}
         <div className="mb-6">
-          <label className="block font-semibold mb-3">Tasarım Öğeleri ({currentElements.length})</label>
+          <label className="block font-semibold mb-3 text-gray-900">Tasarım Öğeleri ({currentElements.length})</label>
           {currentElements.length === 0 ? (
             <p className="text-sm text-gray-500">Henüz öğe eklenmedi</p>
           ) : (
@@ -684,7 +684,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                       : 'border-gray-200 hover:border-purple-300'
                   }`}
                 >
-                  <div className="text-sm font-medium">
+                  <div className="text-sm font-medium text-gray-900">
                     {el.type === 'image' ? '🖼️ Görsel' : '📝 Metin'}
                   </div>
                   {el.type === 'text' && (
@@ -699,14 +699,14 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         {/* Element Editor */}
         {selectedElementData && selectedElementData.type === 'text' && (
           <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-            <label className="block font-semibold mb-2">Metin Düzenle</label>
+            <label className="block font-semibold mb-2 text-gray-900">Metin Düzenle</label>
             <input
               type="text"
               value={selectedElementData.text || ''}
               onChange={(e) => handleUpdateElement(selectedElement!, { text: e.target.value })}
-              className="w-full p-2 border border-gray-300 rounded mb-2"
+              className="w-full p-2 border border-gray-300 rounded mb-2 text-gray-900"
             />
-            <label className="block text-sm font-medium mb-1">Boyut (Max 15px)</label>
+            <label className="block text-sm font-medium mb-1 text-gray-900">Boyut (Max 15px)</label>
             <input
               type="range"
               min="8"
@@ -730,24 +730,67 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         </button>
       </div>
 
-      {/* Canvas */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <DndContext onDragEnd={handleDragEnd}>
-          <div className="relative bg-white rounded-xl shadow-2xl overflow-hidden" style={{ width: 600, height: 600 }}>
-            <img src={getMockupImage()} alt="Product" className="w-full h-full object-contain" />
-            
-            {currentElements.map((element) => (
-              <DraggableElement
-                key={element.id}
-                id={element.id}
-                element={element}
-                isSelected={selectedElement === element.id}
-                onSelect={() => setSelectedElement(element.id)}
-                onResize={handleResize}
-              />
-            ))}
+      {/* Right Panel - Canvas + Action Buttons */}
+      <div className="flex-1 flex gap-4 p-8">
+        {/* Action Buttons Column */}
+        <div className="w-64 flex flex-col gap-3">
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Hızlı İşlemler</h3>
+          
+          <button
+            onClick={() => setShowAIModal(true)}
+            className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+          >
+            <Upload size={20} />
+            Görsel Yükle
+          </button>
+
+          <button
+            onClick={handleAddText}
+            className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+          >
+            <Type size={20} />
+            Metin Ekle
+          </button>
+
+          {selectedElement && (
+            <button
+              onClick={handleDeleteElement}
+              className="flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+            >
+              <Trash2 size={20} />
+              Seçili Öğeyi Sil
+            </button>
+          )}
+
+          <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <p className="text-sm text-gray-700 font-medium mb-2">💡 İpucu:</p>
+            <ul className="text-xs text-gray-600 space-y-1">
+              <li>• Öğeleri sürükleyerek taşıyın</li>
+              <li>• Köşelerden boyutlandırın</li>
+              <li>• Sol panelden düzenleyin</li>
+            </ul>
           </div>
-        </DndContext>
+        </div>
+
+        {/* Canvas */}
+        <div className="flex-1 flex items-center justify-center">
+          <DndContext onDragEnd={handleDragEnd}>
+            <div className="relative bg-white rounded-xl shadow-2xl overflow-hidden" style={{ width: 600, height: 600 }}>
+              <img src={getMockupImage()} alt="Product" className="w-full h-full object-contain" />
+              
+              {currentElements.map((element) => (
+                <DraggableElement
+                  key={element.id}
+                  id={element.id}
+                  element={element}
+                  isSelected={selectedElement === element.id}
+                  onSelect={() => setSelectedElement(element.id)}
+                  onResize={handleResize}
+                />
+              ))}
+            </div>
+          </DndContext>
+        </div>
       </div>
 
       {/* Modals */}
