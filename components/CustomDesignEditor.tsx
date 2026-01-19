@@ -528,13 +528,13 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Left Panel - Product Options Only */}
-      <div className="w-80 bg-white border-r border-gray-200 p-6 overflow-y-auto">
+      <div className="w-[420px] bg-white border-r border-gray-200 p-6 overflow-y-auto">
         <h2 className="text-2xl font-bold mb-6 text-gray-900">Ürün Ayarları</h2>
 
         {/* Product Type Selection */}
         <div className="mb-6">
           <label className="block font-semibold mb-3 text-gray-900">Ürün Tipi</label>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-2">
             {Object.entries(PRODUCT_ICONS).map(([type, icon]) => {
               const config = PRODUCT_CONFIGS[type as ProductType]
               return (
@@ -546,14 +546,14 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                     setCurrentElements([])
                     setAllAngleDesigns([])
                   }}
-                  className={`p-4 rounded-lg border-2 transition flex flex-col items-center ${
+                  className={`p-3 rounded-lg border-2 transition flex flex-col items-center ${
                     selectedProduct === type
                       ? 'border-purple-500 bg-purple-50'
                       : 'border-gray-200 hover:border-purple-300'
                   }`}
                 >
-                  <div className="text-4xl mb-2">{icon}</div>
-                  <div className="text-sm font-medium text-gray-900">{config.name}</div>
+                  <div className="text-3xl mb-1">{icon}</div>
+                  <div className="text-xs font-medium text-gray-900">{config.name}</div>
                 </button>
               )
             })}
@@ -640,9 +640,9 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
       </div>
 
       {/* Center - Canvas */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-gray-100">
+      <div className="flex-1 flex items-center justify-center p-4 bg-gray-100">
         <DndContext onDragEnd={handleDragEnd}>
-          <div className="relative bg-white rounded-xl shadow-2xl overflow-hidden" style={{ width: 600, height: 600 }}>
+          <div className="relative bg-white rounded-lg shadow-2xl overflow-hidden w-full max-w-4xl" style={{ aspectRatio: '1/1', maxHeight: 'calc(100vh - 120px)' }}>
             <img src={getMockupImage()} alt="Product" className="w-full h-full object-contain" />
             
             {currentElements.map((element) => (
@@ -660,7 +660,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
       </div>
 
       {/* Right Panel - Design Tools */}
-      <div className="w-96 bg-white border-l border-gray-200 p-6 overflow-y-auto">
+      <div className="w-80 bg-white border-l border-gray-200 p-6 overflow-y-auto">
         <h2 className="text-2xl font-bold mb-6 text-gray-900">Tasarım Araçları</h2>
 
         {/* Action Buttons */}
