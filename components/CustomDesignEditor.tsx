@@ -456,18 +456,30 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
 
     try {
       setAiStep('📤 Görsel yükleniyor...')
-      const formData = new FormData()
-      formData.append('image', file)
-      if (instructions) {
-        formData.append('prompt', instructions)
-      }
+      
+      // Convert File to base64 data URL
+      const reader = new FileReader()
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onloadend = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+      
+      const imageDataUrl = await base64Promise
+      setAiProgress(20)
 
       setAiStep('🤖 AI analiz yapıyor...')
       setAiProgress(30)
       
       const response = await fetch('/api/ai/convert-image', {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          imageUrl: imageDataUrl,
+          prompt: instructions || 'Pixel art character sprite',
+        }),
       })
 
       setAiStep('🎨 Pixel art oluşturuluyor...')
