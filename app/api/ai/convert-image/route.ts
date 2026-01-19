@@ -685,7 +685,8 @@ CRITICAL FEATURES (must be readable): zipper line, collar, earmuff pads, eyes (2
 
     return NextResponse.json({
       success: true,
-      convertedImageUrl: finalImageUrl,
+      imageUrl: finalImageUrl,  // Frontend expects 'imageUrl'
+      convertedImageUrl: finalImageUrl,  // Keep for backward compatibility
       method: providerUsed || 'unknown',
       originalPrompt: prompt,
     })
