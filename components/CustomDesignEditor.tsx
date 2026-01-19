@@ -489,7 +489,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
     const usedAngles = allAngleDesigns.map(d => d.angle)
     const nextAngle = availableAngles.find(a => !usedAngles.includes(a.id))
     if (nextAngle) {
-      setSelectedAngle(nextAngle.key)
+      setSelectedAngle(nextAngle.id)
       toast.info(`Yeni açı: ${nextAngle.name}`)
     } else {
       toast.info('Tüm açılar kullanıldı')
@@ -542,7 +542,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                   key={type}
                   onClick={() => {
                     setSelectedProduct(type as ProductType)
-                    setSelectedAngle(config.angles[0].key)
+                    setSelectedAngle(config.angles[0].id)
                     setCurrentElements([])
                     setAllAngleDesigns([])
                   }}
@@ -565,21 +565,21 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
           <label className="block font-semibold mb-3">Açı</label>
           <div className="grid grid-cols-2 gap-2">
             {availableAngles.map((angle) => {
-              const isDesigned = allAngleDesigns.some(d => d.angle === angle.key)
+              const isDesigned = allAngleDesigns.some(d => d.angle === angle.id)
               return (
                 <button
-                  key={angle.key}
-                  onClick={() => handleAngleChange(angle.key)}
-                  disabled={isDesigned && selectedAngle !== angle.key}
+                  key={angle.id}
+                  onClick={() => handleAngleChange(angle.id)}
+                  disabled={isDesigned && selectedAngle !== angle.id}
                   className={`p-3 rounded-lg border-2 transition relative ${
-                    selectedAngle === angle.key
+                    selectedAngle === angle.id
                       ? 'border-purple-500 bg-purple-50'
                       : isDesigned
                       ? 'border-green-300 bg-green-50 opacity-60'
                       : 'border-gray-200 hover:border-purple-300'
                   }`}
                 >
-                  <div className="text-2xl mb-1">{ANGLE_ICONS[angle.key] || '📍'}</div>
+                  <div className="text-2xl mb-1">{ANGLE_ICONS[angle.id] || '📍'}</div>
                   <div className="text-xs font-medium">{angle.name}</div>
                   {isDesigned && (
                     <div className="absolute top-1 right-1 text-green-600">✓</div>
