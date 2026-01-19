@@ -527,14 +527,14 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Left Panel */}
+      {/* Left Panel - Product Options Only */}
       <div className="w-80 bg-white border-r border-gray-200 p-6 overflow-y-auto">
-        <h2 className="text-2xl font-bold mb-6 text-gray-900">Tişört Tasarımı</h2>
+        <h2 className="text-2xl font-bold mb-6 text-gray-900">Ürün Ayarları</h2>
 
         {/* Product Type Selection */}
         <div className="mb-6">
           <label className="block font-semibold mb-3 text-gray-900">Ürün Tipi</label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-3">
             {Object.entries(PRODUCT_ICONS).map(([type, icon]) => {
               const config = PRODUCT_CONFIGS[type as ProductType]
               return (
@@ -546,14 +546,14 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                     setCurrentElements([])
                     setAllAngleDesigns([])
                   }}
-                  className={`p-4 rounded-lg border-2 transition ${
+                  className={`p-4 rounded-lg border-2 transition flex flex-col items-center ${
                     selectedProduct === type
                       ? 'border-purple-500 bg-purple-50'
                       : 'border-gray-200 hover:border-purple-300'
                   }`}
                 >
-                  <div className="text-3xl mb-1">{icon}</div>
-                  <div className="text-xs font-medium text-gray-900">{config.name}</div>
+                  <div className="text-4xl mb-2">{icon}</div>
+                  <div className="text-sm font-medium text-gray-900">{config.name}</div>
                 </button>
               )
             })}
@@ -637,6 +637,31 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
             </div>
           </div>
         )}
+      </div>
+
+      {/* Center - Canvas */}
+      <div className="flex-1 flex items-center justify-center p-8 bg-gray-100">
+        <DndContext onDragEnd={handleDragEnd}>
+          <div className="relative bg-white rounded-xl shadow-2xl overflow-hidden" style={{ width: 600, height: 600 }}>
+            <img src={getMockupImage()} alt="Product" className="w-full h-full object-contain" />
+            
+            {currentElements.map((element) => (
+              <DraggableElement
+                key={element.id}
+                id={element.id}
+                element={element}
+                isSelected={selectedElement === element.id}
+                onSelect={() => setSelectedElement(element.id)}
+                onResize={handleResize}
+              />
+            ))}
+          </div>
+        </DndContext>
+      </div>
+
+      {/* Right Panel - Design Tools */}
+      <div className="w-96 bg-white border-l border-gray-200 p-6 overflow-y-auto">
+        <h2 className="text-2xl font-bold mb-6 text-gray-900">Tasarım Araçları</h2>
 
         {/* Action Buttons */}
         <div className="space-y-3 mb-6">
@@ -728,69 +753,6 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
           <ShoppingCart size={24} />
           Sepete Ekle
         </button>
-      </div>
-
-      {/* Right Panel - Canvas + Action Buttons */}
-      <div className="flex-1 flex gap-4 p-8">
-        {/* Action Buttons Column */}
-        <div className="w-64 flex flex-col gap-3">
-          <h3 className="text-xl font-bold text-gray-900 mb-2">Hızlı İşlemler</h3>
-          
-          <button
-            onClick={() => setShowAIModal(true)}
-            className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
-          >
-            <Upload size={20} />
-            Görsel Yükle
-          </button>
-
-          <button
-            onClick={handleAddText}
-            className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-          >
-            <Type size={20} />
-            Metin Ekle
-          </button>
-
-          {selectedElement && (
-            <button
-              onClick={handleDeleteElement}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
-            >
-              <Trash2 size={20} />
-              Seçili Öğeyi Sil
-            </button>
-          )}
-
-          <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <p className="text-sm text-gray-700 font-medium mb-2">💡 İpucu:</p>
-            <ul className="text-xs text-gray-600 space-y-1">
-              <li>• Öğeleri sürükleyerek taşıyın</li>
-              <li>• Köşelerden boyutlandırın</li>
-              <li>• Sol panelden düzenleyin</li>
-            </ul>
-          </div>
-        </div>
-
-        {/* Canvas */}
-        <div className="flex-1 flex items-center justify-center">
-          <DndContext onDragEnd={handleDragEnd}>
-            <div className="relative bg-white rounded-xl shadow-2xl overflow-hidden" style={{ width: 600, height: 600 }}>
-              <img src={getMockupImage()} alt="Product" className="w-full h-full object-contain" />
-              
-              {currentElements.map((element) => (
-                <DraggableElement
-                  key={element.id}
-                  id={element.id}
-                  element={element}
-                  isSelected={selectedElement === element.id}
-                  onSelect={() => setSelectedElement(element.id)}
-                  onResize={handleResize}
-                />
-              ))}
-            </div>
-          </DndContext>
-        </div>
       </div>
 
       {/* Modals */}
