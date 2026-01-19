@@ -4,8 +4,20 @@ import { useState, useRef } from 'react'
 import { DndContext, DragEndEvent, useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { HexColorPicker } from 'react-colorful'
-import { Upload, Type, Image as ImageIcon, Trash2, ZoomIn, ZoomOut, RotateCw, Save } from 'lucide-react'
+import { 
+  Upload, Type, Image as ImageIcon, Trash2, ZoomIn, ZoomOut, RotateCw, Save, 
+  ChevronDown, Plus, Edit2, Check, X 
+} from 'lucide-react'
 import { toast, Toaster } from 'sonner'
+import { 
+  PRODUCT_CONFIGS, 
+  ProductType, 
+  ProductAngle, 
+  ProductColor, 
+  ProductSize,
+  COLOR_LABELS,
+  COLOR_HEX
+} from '@/lib/product-config'
 
 interface DesignElement {
   id: string
@@ -27,6 +39,12 @@ interface DesignElement {
   fontStyle?: 'normal' | 'italic'
 }
 
+interface AngleDesign {
+  angle: ProductAngle
+  angleName: string
+  elements: DesignElement[]
+}
+
 // Draggable Element Component with Resize Handles
 function DraggableElement({ 
   id, 
@@ -45,135 +63,90 @@ function DraggableElement({
     id: id,
   })
   
-  const [isResizing, setIsResizing] = useState(false)
-  const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 })
-
   const style = {
     position: 'absolute' as const,
     left: element.position.x,
     top: element.position.y,
     transform: transform ? CSS.Translate.toString(transform) : undefined,
-    cursor: isResizing ? 'nwse-resize' : 'move',
+    cursor: 'move',
   }
 
-  // Resize handler (köşe handle'larından sürüklendiğinde)
+  // Resize handler
   const handleResizeMouseDown = (e: React.MouseEvent, corner: 'nw' | 'ne' | 'sw' | 'se') => {
     e.stopPropagation()
     e.preventDefault()
-    
-    setIsResizing(true)
-    setResizeStart({
-      x: e.clientX,
-      y: e.clientY,
-      width: element.imageWidth || 200,
-      height: element.imageHeight || 200,
-    })
-    
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      const deltaX = moveEvent.clientX - e.clientX
-      const deltaY = moveEvent.clientY - e.clientY
-      
-      let newWidth = resizeStart.width
-      let newHeight = resizeStart.height
-      
-      // Köşeye göre resize direction
-      if (corner === 'se') {
-        newWidth = resizeStart.width + deltaX
-        newHeight = resizeStart.height + deltaY
-      } else if (corner === 'sw') {
-        newWidth = resizeStart.width - deltaX
-        newHeight = resizeStart.height + deltaY
-      } else if (corner === 'ne') {
-        newWidth = resizeStart.width + deltaX
-        newHeight = resizeStart.height - deltaY
-      } else if (corner === 'nw') {
-        newWidth = resizeStart.width - deltaX
-        newHeight = resizeStart.height - deltaY
+
+    const startX = e.clientX
+    const startY = e.clientY
+    const startWidth = element.imageWidth || element.fontSize || 100
+    const startHeight = element.imageHeight || element.fontSize || 100
+
+    const doDrag = (moveEvent: MouseEvent) => {
+      const dx = moveEvent.clientX - startX
+      const dy = moveEvent.clientY - startY
+
+      let newWidth = startWidth
+      let newHeight = startHeight
+
+      if (corner.includes('e')) newWidth = startWidth + dx
+      if (corner.includes('w')) newWidth = startWidth - dx
+      if (corner.includes('s')) newHeight = startHeight + dy
+      if (corner.includes('n')) newHeight = startHeight - dy
+
+      // Min/max sınırları (görsel 40-50px arasında, text 15px max)
+      if (element.type === 'image') {
+        newWidth = Math.max(40, Math.min(50, newWidth))
+        newHeight = Math.max(40, Math.min(50, newHeight))
+      } else {
+        // Text için max font size 15px
+        const avgSize = (newWidth + newHeight) / 2
+        const constrainedSize = Math.max(8, Math.min(15, avgSize))
+        newWidth = constrainedSize
+        newHeight = constrainedSize
       }
-      
-      // Min/max sınırları
-      newWidth = Math.max(50, Math.min(600, newWidth))
-      newHeight = Math.max(50, Math.min(600, newHeight))
-      
+
       onResize(id, newWidth, newHeight)
     }
-    
-    const handleMouseUp = () => {
-      setIsResizing(false)
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
+
+    const stopDrag = () => {
+      document.removeEventListener('mousemove', doDrag)
+      document.removeEventListener('mouseup', stopDrag)
     }
-    
-    document.addEventListener('mousemove', handleMouseMove)
-    document.addEventListener('mouseup', handleMouseUp)
+
+    document.addEventListener('mousemove', doDrag)
+    document.addEventListener('mouseup', stopDrag)
   }
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      {...(isResizing ? {} : listeners)}  // Resize sırasında drag'i devre dışı bırak
-      {...(isResizing ? {} : attributes)}
-      className={isSelected ? 'ring-2 ring-purple-500 rounded' : ''}
+      {...listeners}
+      {...attributes}
       onClick={(e) => {
         e.stopPropagation()
         onSelect()
       }}
+      className={`relative ${isSelected ? 'ring-2 ring-purple-500' : ''}`}
     >
-      {element.type === 'image' && element.imageUrl && (
-        <>
-          <img
-            src={element.imageUrl}
-            alt="Design"
-            style={{
-              width: element.imageWidth,
-              height: element.imageHeight,
-              objectFit: 'contain',
-              transform: element.rotation ? `rotate(${element.rotation}deg)` : undefined,
-              pointerEvents: 'none',
-            }}
-            draggable={false}
-          />
-          
-          {/* Resize Handles (sadece seçili ise göster) */}
-          {isSelected && (
-            <>
-              {/* NW - Sol Üst */}
-              <div
-                onMouseDown={(e) => handleResizeMouseDown(e, 'nw')}
-                className="absolute -top-2 -left-2 w-4 h-4 bg-white border-2 border-purple-500 rounded-full cursor-nwse-resize hover:bg-purple-500 transition"
-                style={{ zIndex: 10 }}
-              />
-              
-              {/* NE - Sağ Üst */}
-              <div
-                onMouseDown={(e) => handleResizeMouseDown(e, 'ne')}
-                className="absolute -top-2 -right-2 w-4 h-4 bg-white border-2 border-purple-500 rounded-full cursor-nesw-resize hover:bg-purple-500 transition"
-                style={{ zIndex: 10, right: '-8px' }}
-              />
-              
-              {/* SW - Sol Alt */}
-              <div
-                onMouseDown={(e) => handleResizeMouseDown(e, 'sw')}
-                className="absolute -bottom-2 -left-2 w-4 h-4 bg-white border-2 border-purple-500 rounded-full cursor-nesw-resize hover:bg-purple-500 transition"
-                style={{ zIndex: 10, bottom: '-8px' }}
-              />
-              
-              {/* SE - Sağ Alt */}
-              <div
-                onMouseDown={(e) => handleResizeMouseDown(e, 'se')}
-                className="absolute -bottom-2 -right-2 w-4 h-4 bg-white border-2 border-purple-500 rounded-full cursor-nwse-resize hover:bg-purple-500 transition"
-                style={{ zIndex: 10, right: '-8px', bottom: '-8px' }}
-              />
-            </>
-          )}
-        </>
-      )}
-
-      {element.type === 'text' && (
-        <div
+      {element.type === 'image' ? (
+        <img
+          src={element.imageUrl}
+          alt="Design element"
           style={{
-            fontSize: element.fontSize,
+            width: element.imageWidth || 45,
+            height: element.imageHeight || 45,
+            transform: `rotate(${element.rotation || 0}deg)`,
+            pointerEvents: 'none',
+            userSelect: 'none',
+          }}
+          draggable={false}
+        />
+      ) : (
+        <div
+          className="text-gray-900"
+          style={{
+            fontSize: `${element.fontSize || 12}px`,
             fontFamily: element.fontFamily,
             color: element.color,
             fontWeight: element.fontWeight,
@@ -185,6 +158,23 @@ function DraggableElement({
         >
           {element.text}
         </div>
+      )}
+      {isSelected && (
+        <>
+          {['nw', 'ne', 'sw', 'se'].map(corner => (
+            <div
+              key={corner}
+              className={`absolute w-4 h-4 bg-white border-2 border-purple-500 rounded-full cursor-${corner}-resize hover:bg-purple-500 transition-colors z-10`}
+              style={{
+                top: corner.includes('n') ? -8 : 'auto',
+                bottom: corner.includes('s') ? -8 : 'auto',
+                left: corner.includes('w') ? -8 : 'auto',
+                right: corner.includes('e') ? -8 : 'auto',
+              }}
+              onMouseDown={(e) => handleResizeMouseDown(e, corner as any)}
+            />
+          ))}
+        </>
       )}
     </div>
   )
@@ -203,21 +193,60 @@ export default function CustomDesignEditor({
   productColor = 'white',
   onSave 
 }: CustomDesignEditorProps) {
+  // Product configuration state
+  const [selectedProduct, setSelectedProduct] = useState<ProductType>('tshirt')
+  const [selectedAngle, setSelectedAngle] = useState<ProductAngle>('front-chest')
+  const [selectedColor, setSelectedColor] = useState<ProductColor>('white')
+  const [selectedSize, setSelectedSize] = useState<ProductSize | null>('M')
+  
+  // Multi-angle designs
+  const [angleDesigns, setAngleDesigns] = useState<AngleDesign[]>([
+    { angle: 'front-chest', angleName: 'Ön Göğüs', elements: [] }
+  ])
+  const [currentAngleIndex, setCurrentAngleIndex] = useState(0)
+  
+  // Elements state (current angle'ın elementleri)
   const [elements, setElements] = useState<DesignElement[]>([])
   const [selectedElement, setSelectedElement] = useState<string | null>(null)
+  
+  // UI state
   const [showColorPicker, setShowColorPicker] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
+  const [showAddAngleDialog, setShowAddAngleDialog] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   
-  // Metin ekleme state'leri
+  // Text editor state
   const [textInput, setTextInput] = useState('')
-  const [fontSize, setFontSize] = useState(48)
+  const [fontSize, setFontSize] = useState(12) // Max 15px
   const [fontFamily, setFontFamily] = useState('Arial')
   const [textColor, setTextColor] = useState('#000000')
   const [fontWeight, setFontWeight] = useState<'normal' | 'bold'>('normal')
   const [fontStyle, setFontStyle] = useState<'normal' | 'italic'>('normal')
+  
+  // Custom prompt for AI
+  const [customPrompt, setCustomPrompt] = useState('')
 
-  // Drag end handler - KRITIK: Bu olmadan drag çalışmaz
+  // Current product config
+  const productConfig = PRODUCT_CONFIGS[selectedProduct]
+  
+  // Current mockup URL
+  const mockupUrl = `/mockups/${selectedProduct}/${selectedColor}/${selectedAngle}.png`
+  
+  // Update elements when changing angles
+  const switchToAngle = (angleIndex: number) => {
+    // Save current angle's elements
+    setAngleDesigns(prev => prev.map((design, idx) => 
+      idx === currentAngleIndex ? { ...design, elements } : design
+    ))
+    
+    // Load new angle's elements
+    setCurrentAngleIndex(angleIndex)
+    setElements(angleDesigns[angleIndex].elements)
+    setSelectedAngle(angleDesigns[angleIndex].angle)
+    setSelectedElement(null)
+  }
+
+  // Drag end handler
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, delta } = event
     
@@ -235,7 +264,7 @@ export default function CustomDesignEditor({
     }))
   }
 
-  // Görsel yükleme ve OpenAI conversion
+  // Image upload with AI conversion
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -254,15 +283,14 @@ export default function CustomDesignEditor({
         const imageUrl = event.target?.result as string
         const tempId = `img-${Date.now()}`
         
-        // 📸 Adım 1: Yükleme başlatıldı
         toast.loading('📸 Görsel yükleniyor...', { id: 'ai-conversion' })
         
-        // OpenAI'a gönder ve pixel art'a çevir
         try {
-          console.log('[Upload] Sending to OpenAI, image size:', imageUrl.length, 'bytes')
-          
-          // 🤖 Adım 2: AI analizi
           toast.loading('🤖 AI görsel analizi yapılıyor...', { id: 'ai-conversion' })
+          
+          // Build prompt (custom prompt + base prompt)
+          const basePrompt = 'Use uploaded photo as reference. Keep silhouette and pose. Single character. 64x64 pixel-art sprite, flat solid colors only, one color per area, black outlines, max 12 colors, hair one rounded blob, transparent background, no shading/highlights/gradients/texture.'
+          const finalPrompt = customPrompt ? `${customPrompt}\n\n${basePrompt}` : basePrompt
           
           const response = await fetch('/api/ai/convert-image', {
             method: 'POST',
@@ -271,53 +299,50 @@ export default function CustomDesignEditor({
             },
             body: JSON.stringify({
               imageUrl,
-              prompt: 'Use uploaded photo as reference. Keep silhouette and pose. Single character. 64x64 pixel-art sprite, flat solid colors only, one color per area, black outlines, max 16 colors, hair one rounded blob, transparent background, no shading/highlights/gradients/texture.',
+              prompt: finalPrompt,
             }),
           })
 
-          // 🎨 Adım 3: Pixel art oluşturuluyor
           toast.loading('🎨 Pixel art oluşturuluyor...', { id: 'ai-conversion' })
 
-          console.log('[Upload] Response status:', response.status)
           const data = await response.json()
-          console.log('[Upload] Response data:', data)
           
           if (data.success && data.convertedImageUrl) {
-            // ✅ Başarılı - AI görseli ile element oluştur
             const newElement: DesignElement = {
               id: tempId,
               type: 'image',
               position: { x: 50, y: 50 },
               imageUrl: data.convertedImageUrl,
-              imageWidth: 200,
-              imageHeight: 200,
+              imageWidth: 45, // Default 45px (40-50 arası)
+              imageHeight: 45,
               rotation: 0,
             }
             
             setElements(prev => [...prev, newElement])
             setSelectedElement(tempId)
             toast.success(`✨ Pixel art dönüşümü tamamlandı! (${data.method || 'unknown'})`, { id: 'ai-conversion' })
+            
+            // Show add angle dialog if multiple angles available
+            if (productConfig.angles.length > 1 && angleDesigns.length < productConfig.angles.length) {
+              setTimeout(() => setShowAddAngleDialog(true), 1500)
+            }
           } else {
-            // ❌ Başarısız - görsel ekleme yok
-            console.warn('[Upload] AI conversion failed:', data.error)
             toast.error(`❌ AI dönüşümü başarısız: ${data.error || 'Bilinmeyen hata'}`, { id: 'ai-conversion' })
           }
         } catch (error: any) {
-          console.error('[Upload] AI conversion error:', error)
           toast.error('❌ AI dönüşümü sırasında hata oluştu', { id: 'ai-conversion' })
         }
       }
       
       reader.readAsDataURL(file)
     } catch (error) {
-      console.error('Image upload error:', error)
       toast.error('Görsel yüklenemedi')
     } finally {
       setUploadingImage(false)
     }
   }
 
-  // Metin ekleme
+  // Add text
   const handleAddText = () => {
     if (!textInput.trim()) {
       toast.error('Lütfen bir metin girin')
@@ -329,7 +354,7 @@ export default function CustomDesignEditor({
       type: 'text',
       position: { x: 100, y: 100 },
       text: textInput,
-      fontSize,
+      fontSize: Math.min(fontSize, 15), // Max 15px
       fontFamily,
       color: textColor,
       fontWeight,
@@ -339,344 +364,443 @@ export default function CustomDesignEditor({
     setElements(prev => [...prev, newElement])
     setSelectedElement(newElement.id)
     setTextInput('')
-    toast.success('Metin eklendi')
   }
 
-  // Element silme
+  // Resize handler
+  const handleResize = (id: string, newWidth: number, newHeight: number) => {
+    setElements(prev => prev.map(el => {
+      if (el.id === id) {
+        if (el.type === 'image') {
+          return { ...el, imageWidth: newWidth, imageHeight: newHeight }
+        } else {
+          // For text, use average as fontSize
+          const avgSize = (newWidth + newHeight) / 2
+          return { ...el, fontSize: Math.min(avgSize, 15) } // Max 15px
+        }
+      }
+      return el
+    }))
+  }
+
+  // Delete element
   const handleDeleteElement = (id: string) => {
     setElements(prev => prev.filter(el => el.id !== id))
     if (selectedElement === id) {
       setSelectedElement(null)
     }
-    toast.success('Element silindi')
   }
 
-  // Görsel boyutlandırma (manuel resize handler)
-  const handleImageResize = (id: string, scale: number) => {
-    setElements(prev => prev.map(el => {
-      if (el.id === id && el.type === 'image') {
-        return {
-          ...el,
-          imageWidth: (el.imageWidth || 150) * scale,
-          imageHeight: (el.imageHeight || 150) * scale,
-        }
-      }
-      return el
-    }))
-  }
-  
-  // Görsel boyutlandırma (drag handle'dan)
-  const handleResizeDrag = (id: string, newWidth: number, newHeight: number) => {
-    setElements(prev => prev.map(el => {
-      if (el.id === id && el.type === 'image') {
-        return {
-          ...el,
-          imageWidth: newWidth,
-          imageHeight: newHeight,
-        }
-      }
-      return el
-    }))
-  }
-
-  // Görsel döndürme
-  const handleImageRotate = (id: string) => {
-    setElements(prev => prev.map(el => {
-      if (el.id === id && el.type === 'image') {
-        return {
-          ...el,
-          rotation: ((el.rotation || 0) + 90) % 360,
-        }
-      }
-      return el
-    }))
-  }
-
-  // Metin güncelleme
-  const handleTextUpdate = (id: string, updates: Partial<DesignElement>) => {
-    setElements(prev => prev.map(el => 
-      el.id === id ? { ...el, ...updates } : el
-    ))
-  }
-
-  // Kaydet
-  const handleSave = () => {
-    if (elements.length === 0) {
-      toast.error('Lütfen en az bir tasarım elementi ekleyin')
+  // Add new angle
+  const handleAddNewAngle = (angle: ProductAngle, angleName: string) => {
+    if (angleDesigns.some(d => d.angle === angle)) {
+      toast.error('Bu açı zaten mevcut')
       return
     }
     
-    onSave(elements)
-    toast.success('Tasarım kaydedildi!')
+    setAngleDesigns(prev => [...prev, { angle, angleName, elements: [] }])
+    switchToAngle(angleDesigns.length) // Switch to new angle
+    setShowAddAngleDialog(false)
+    toast.success(`${angleName} açısı eklendi`)
   }
 
-  const selectedEl = elements.find(el => el.id === selectedElement)
-  const mockupImage = productImage || 'https://placehold.co/600x700/cccccc/222222?text=T-Shirt+Mockup'
+  // Product change
+  const handleProductChange = (newProduct: ProductType) => {
+    setSelectedProduct(newProduct)
+    const newConfig = PRODUCT_CONFIGS[newProduct]
+    setSelectedAngle(newConfig.angles[0].id)
+    setSelectedColor('white')
+    setSelectedSize(newConfig.sizes ? newConfig.sizes[0] : null)
+    setAngleDesigns([{ angle: newConfig.angles[0].id, angleName: newConfig.angles[0].name, elements: [] }])
+    setCurrentAngleIndex(0)
+    setElements([])
+    setSelectedElement(null)
+  }
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 h-full min-h-screen bg-gray-50 p-6">
-      <Toaster position="top-right" />
+    <div className="flex h-screen bg-gray-50">
+      <Toaster position="top-center" />
       
-      {/* Sol Panel - Araçlar */}
-      <div className="w-full lg:w-80 space-y-4 shrink-0">
-        {/* Görsel Yükleme */}
-        <div className="bg-white rounded-xl p-4 shadow-md">
-          <h3 className="font-bold text-lg mb-3 flex items-center gap-2 text-gray-900">
-            <ImageIcon className="w-5 h-5" />
-            Görsel Ekle
-          </h3>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleImageUpload}
-            className="hidden"
-            disabled={uploadingImage}
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploadingImage}
-            className="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition flex items-center justify-center gap-2 disabled:opacity-50"
-          >
-            <Upload className="w-5 h-5" />
-            {uploadingImage ? 'İşleniyor...' : 'Görsel Yükle'}
-          </button>
-          <p className="text-xs text-gray-500 mt-2">
-            Yüklediğiniz görsel otomatik olarak pixel art'a dönüştürülecek
-          </p>
-        </div>
-
-        {/* Metin Ekleme */}
-        <div className="bg-white rounded-xl p-4 shadow-md">
-          <h3 className="font-bold text-lg mb-3 flex items-center gap-2 text-gray-900">
-            <Type className="w-5 h-5" />
-            Metin Ekle
-          </h3>
-          
-          <input
-            type="text"
-            value={textInput}
-            onChange={(e) => setTextInput(e.target.value)}
-            placeholder="Metninizi yazın..."
-            className="w-full px-3 py-2 border rounded-lg mb-3 focus:outline-none focus:ring-2 focus:ring-purple-600 text-gray-900 placeholder:text-gray-500"
-          />
-
-          {/* Font Ailesi */}
+      {/* Left Panel - Product Configuration */}
+      <div className="w-80 bg-white border-r border-gray-200 overflow-y-auto p-6">
+        <h3 className="text-lg font-bold text-gray-900 mb-4">Ürün Ayarları</h3>
+        
+        {/* Product Type Selector */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-900 mb-2">Ürün Tipi</label>
           <select
-            value={fontFamily}
-            onChange={(e) => setFontFamily(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg mb-2 focus:outline-none focus:ring-2 focus:ring-purple-600 text-gray-900"
+            value={selectedProduct}
+            onChange={(e) => handleProductChange(e.target.value as ProductType)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-purple-500"
           >
-            <option value="Arial">Arial</option>
-            <option value="Helvetica">Helvetica</option>
-            <option value="Times New Roman">Times New Roman</option>
-            <option value="Courier New">Courier New</option>
-            <option value="Georgia">Georgia</option>
-            <option value="Verdana">Verdana</option>
-            <option value="Comic Sans MS">Comic Sans MS</option>
-            <option value="Impact">Impact</option>
-            <option value="Brush Script MT">Brush Script</option>
+            {Object.values(PRODUCT_CONFIGS).map(config => (
+              <option key={config.id} value={config.id}>{config.name}</option>
+            ))}
           </select>
-
-          {/* Font Boyutu */}
-          <div className="mb-3">
-            <label className="block text-sm font-medium mb-1 text-gray-900">
-              Boyut: {fontSize}px
-            </label>
-            <input
-              type="range"
-              min="12"
-              max="120"
-              value={fontSize}
-              onChange={(e) => setFontSize(Number(e.target.value))}
-              className="w-full"
-            />
-          </div>
-
-          {/* Renk Seçici - DÜZELTİLMİŞ */}
-          <div className="mb-3">
-            <label className="block text-sm font-medium mb-2 text-gray-900">Renk</label>
-            <div className="flex items-center gap-2 mb-2">
-              <button
-                onClick={() => setShowColorPicker(!showColorPicker)}
-                className="w-12 h-12 rounded-lg border-2 border-gray-300 shadow-sm hover:border-purple-600 transition"
-                style={{ backgroundColor: textColor }}
-                title="Renk seçici"
-              />
-              <input
-                type="text"
-                value={textColor}
-                onChange={(e) => setTextColor(e.target.value)}
-                className="flex-1 px-3 py-2 border rounded-lg text-sm font-mono uppercase text-gray-900"
-                placeholder="#000000"
-              />
-            </div>
-            {showColorPicker && (
-              <div className="mt-3 p-2 bg-gray-50 rounded-lg">
-                <HexColorPicker color={textColor} onChange={setTextColor} />
-                <button
-                  onClick={() => setShowColorPicker(false)}
-                  className="w-full mt-2 text-sm text-gray-600 hover:text-gray-800"
-                >
-                  Kapat
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Font Style */}
-          <div className="flex gap-2 mb-3">
-            <button
-              onClick={() => setFontWeight(fontWeight === 'bold' ? 'normal' : 'bold')}
-              className={`flex-1 py-2 rounded-lg border-2 font-bold transition ${
-                fontWeight === 'bold'
-                  ? 'bg-purple-600 text-white border-purple-600'
-                  : 'border-gray-300 hover:border-purple-600'
-              }`}
-            >
-              B
-            </button>
-            <button
-              onClick={() => setFontStyle(fontStyle === 'italic' ? 'normal' : 'italic')}
-              className={`flex-1 py-2 rounded-lg border-2 italic transition ${
-                fontStyle === 'italic'
-                  ? 'bg-purple-600 text-white border-purple-600'
-                  : 'border-gray-300 hover:border-purple-600'
-              }`}
-            >
-              I
-            </button>
-          </div>
-
-          <button
-            onClick={handleAddText}
-            className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition"
-          >
-            Metni Ekle
-          </button>
         </div>
 
-        {/* Seçili Element Düzenleme */}
-        {selectedEl && (
-          <div className="bg-white rounded-xl p-4 shadow-md">
-            <h3 className="font-bold text-lg mb-3 text-gray-900">Seçili Element</h3>
-            
-            {selectedEl.type === 'image' && (
-              <div className="space-y-2">
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleImageResize(selectedEl.id, 1.2)}
-                    className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-1"
-                  >
-                    <ZoomIn className="w-4 h-4" />
-                    Büyüt
-                  </button>
-                  <button
-                    onClick={() => handleImageResize(selectedEl.id, 0.8)}
-                    className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-1"
-                  >
-                    <ZoomOut className="w-4 h-4" />
-                    Küçült
-                  </button>
-                </div>
+        {/* Angle Selector */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-900 mb-2">Açı</label>
+          <div className="space-y-2">
+            {angleDesigns.map((design, idx) => (
+              <button
+                key={design.angle}
+                onClick={() => switchToAngle(idx)}
+                className={`w-full px-3 py-2 rounded-lg text-left text-sm transition-colors ${
+                  currentAngleIndex === idx
+                    ? 'bg-purple-100 text-purple-900 font-medium'
+                    : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+                }`}
+              >
+                {design.angleName} {design.elements.length > 0 && `(${design.elements.length})`}
+              </button>
+            ))}
+            {angleDesigns.length < productConfig.angles.length && (
+              <button
+                onClick={() => setShowAddAngleDialog(true)}
+                className="w-full px-3 py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-purple-500 hover:text-purple-600 transition-colors flex items-center justify-center gap-2"
+              >
+                <Plus size={16} />
+                <span className="text-sm">Yeni Açı Ekle</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Color Selector */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-900 mb-2">Renk</label>
+          <div className="grid grid-cols-4 gap-2">
+            {productConfig.colors.map(color => (
+              <button
+                key={color}
+                onClick={() => setSelectedColor(color)}
+                className={`h-12 rounded-lg border-2 transition-all ${
+                  selectedColor === color
+                    ? 'border-purple-500 ring-2 ring-purple-200'
+                    : 'border-gray-300 hover:border-gray-400'
+                }`}
+                style={{ backgroundColor: COLOR_HEX[color] }}
+                title={COLOR_LABELS[color]}
+              />
+            ))}
+          </div>
+          <p className="text-xs text-gray-600 mt-2">{COLOR_LABELS[selectedColor]}</p>
+        </div>
+
+        {/* Size Selector (conditional) */}
+        {productConfig.sizes && productConfig.sizes.length > 0 && (
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-900 mb-2">Beden</label>
+            <div className="flex flex-wrap gap-2">
+              {productConfig.sizes.map(size => (
                 <button
-                  onClick={() => handleImageRotate(selectedEl.id)}
-                  className="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition flex items-center justify-center gap-1"
+                  key={size}
+                  onClick={() => setSelectedSize(size)}
+                  className={`px-3 py-2 rounded-lg text-sm transition-colors ${
+                    selectedSize === size
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+                  }`}
                 >
-                  <RotateCw className="w-4 h-4" />
-                  Döndür
+                  {size}
                 </button>
-              </div>
-            )}
-
-            {selectedEl.type === 'text' && (
-              <div className="space-y-2">
-                <input
-                  type="text"
-                  value={selectedEl.text}
-                  onChange={(e) => handleTextUpdate(selectedEl.id, { text: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
-                />
-                <div>
-                  <label className="block text-sm font-medium mb-1 text-gray-900">
-                    Boyut: {selectedEl.fontSize}px
-                  </label>
-                  <input
-                    type="range"
-                    min="12"
-                    max="120"
-                    value={selectedEl.fontSize}
-                    onChange={(e) => handleTextUpdate(selectedEl.id, { fontSize: Number(e.target.value) })}
-                    className="w-full"
-                  />
-                </div>
-              </div>
-            )}
-
-            <button
-              onClick={() => handleDeleteElement(selectedEl.id)}
-              className="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-1 mt-3"
-            >
-              <Trash2 className="w-4 h-4" />
-              Sil
-            </button>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* Kaydet Butonu */}
-        <button
-          onClick={handleSave}
-          className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 rounded-lg hover:from-purple-700 hover:to-pink-700 transition flex items-center justify-center gap-2 font-bold text-lg shadow-lg"
-        >
-          <Save className="w-6 h-6" />
-          Tasarımı Kaydet
-        </button>
+        <hr className="my-6 border-gray-200" />
+
+        {/* Element List */}
+        <div className="mb-6">
+          <h4 className="text-sm font-medium text-gray-900 mb-3">Tasarım Öğeleri ({elements.length})</h4>
+          {elements.length === 0 ? (
+            <p className="text-sm text-gray-500 text-center py-4">Henüz öğe eklenmedi</p>
+          ) : (
+            <div className="space-y-2">
+              {elements.map(el => (
+                <div
+                  key={el.id}
+                  onClick={() => setSelectedElement(el.id)}
+                  className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
+                    selectedElement === el.id
+                      ? 'bg-purple-100 border-2 border-purple-500'
+                      : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    {el.type === 'image' ? <ImageIcon size={16} /> : <Type size={16} />}
+                    <span className="text-sm text-gray-900">
+                      {el.type === 'image' ? 'Görsel' : el.text?.substring(0, 20)}
+                    </span>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDeleteElement(el.id)
+                    }}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Merkez - Canvas */}
-      <div className="flex-1 bg-white rounded-xl shadow-lg p-8 relative overflow-hidden">
-        <h2 className="text-2xl font-bold mb-4 text-center text-gray-900">{productName}</h2>
-        
-        {/* Canvas Area - DndContext ile onDragEnd eklendi */}
-        <DndContext onDragEnd={handleDragEnd}>
-          <div 
-            className="relative mx-auto bg-gray-100 rounded-lg overflow-hidden border-2 border-gray-300"
-            style={{ 
-              width: '600px', 
-              height: '700px',
-              backgroundColor: '#f8fafc',
+      {/* Center - Canvas */}
+      <div className="flex-1 flex flex-col">
+        {/* Toolbar */}
+        <div className="bg-white border-b border-gray-200 p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-bold text-gray-900">{productConfig.name} Tasarımı</h2>
+            <span className="text-sm text-gray-600">
+              {angleDesigns[currentAngleIndex].angleName} - {COLOR_LABELS[selectedColor]}
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              // Save all angle designs
+              const finalDesigns = angleDesigns.map((design, idx) => 
+                idx === currentAngleIndex ? { ...design, elements } : design
+              )
+              console.log('Saving designs:', finalDesigns)
+              toast.success('Tasarım kaydedildi!')
             }}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
           >
-            {/* Base T-shirt Mockup (her zaman görünür) */}
-            <img
-              src={mockupImage}
-              alt="T-shirt mockup"
-              className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none drop-shadow-md"
-              draggable={false}
-            />
+            <Save size={18} />
+            Kaydet
+          </button>
+        </div>
 
-            {/* Design Elements */}
-            {elements.map(element => {
-              return (
+        {/* Canvas */}
+        <div className="flex-1 flex items-center justify-center p-8">
+          <DndContext onDragEnd={handleDragEnd}>
+            <div
+              className="relative bg-gray-100 border-4 border-gray-300 rounded-lg shadow-xl"
+              style={{ width: 600, height: 600 }}
+              onClick={() => setSelectedElement(null)}
+            >
+              {/* Mockup Background */}
+              <img
+                src={mockupUrl}
+                alt={`${productConfig.name} mockup`}
+                className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+                onError={(e) => {
+                  // Fallback to white t-shirt
+                  e.currentTarget.src = '/white-tshirt.png'
+                }}
+              />
+              
+              {/* Design Elements */}
+              {elements.map(element => (
                 <DraggableElement
                   key={element.id}
                   id={element.id}
                   element={element}
                   isSelected={selectedElement === element.id}
                   onSelect={() => setSelectedElement(element.id)}
-                  onResize={handleResizeDrag}
+                  onResize={handleResize}
                 />
-              )
-            })}
-
-          </div>
-        </DndContext>
-
-        {/* Element Sayısı */}
-        <div className="mt-4 text-center text-sm text-gray-600">
-          Toplam {elements.length} element
+              ))}
+            </div>
+          </DndContext>
         </div>
       </div>
+
+      {/* Right Panel - Tools */}
+      <div className="w-96 bg-white border-l border-gray-200 overflow-y-auto p-6">
+        <h3 className="text-lg font-bold text-gray-900 mb-4">Tasarım Araçları</h3>
+
+        {/* Image Upload */}
+        <div className="mb-6">
+          <h4 className="text-sm font-medium text-gray-900 mb-3">Görsel Ekle</h4>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingImage}
+            className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+          >
+            <Upload size={18} />
+            {uploadingImage ? 'Yükleniyor...' : 'Görsel Yükle'}
+          </button>
+          <p className="text-xs text-gray-600 mt-2">Max 5MB, AI ile pixel art'a dönüştürülecek</p>
+        </div>
+
+        {/* Custom AI Prompt */}
+        <div className="mb-6">
+          <h4 className="text-sm font-medium text-gray-900 mb-2">Ek AI Talimatları (Opsiyonel)</h4>
+          <textarea
+            value={customPrompt}
+            onChange={(e) => setCustomPrompt(e.target.value)}
+            placeholder="Örn: Karakterin yüzü gülüyor olsun, kıyafeti mavi olsun, vb..."
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 text-sm resize-none focus:ring-2 focus:ring-purple-500"
+            rows={4}
+          />
+          <p className="text-xs text-gray-600 mt-1">
+            Bu talimatlar ana akışı bozmadıkça önceliklendirilir
+          </p>
+        </div>
+
+        <hr className="my-6 border-gray-200" />
+
+        {/* Text Tools */}
+        <div className="mb-6">
+          <h4 className="text-sm font-medium text-gray-900 mb-3">Metin Ekle</h4>
+          <input
+            type="text"
+            value={textInput}
+            onChange={(e) => setTextInput(e.target.value)}
+            placeholder="Metin girin..."
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 mb-3 focus:ring-2 focus:ring-purple-500"
+            onKeyPress={(e) => e.key === 'Enter' && handleAddText()}
+          />
+          
+          <div className="space-y-3 mb-3">
+            <div>
+              <label className="block text-xs text-gray-700 mb-1">Boyut (Max 15px)</label>
+              <input
+                type="range"
+                min="8"
+                max="15"
+                value={fontSize}
+                onChange={(e) => setFontSize(Number(e.target.value))}
+                className="w-full"
+              />
+              <span className="text-xs text-gray-600">{fontSize}px</span>
+            </div>
+
+            <div>
+              <label className="block text-xs text-gray-700 mb-1">Font</label>
+              <select
+                value={fontFamily}
+                onChange={(e) => setFontFamily(e.target.value)}
+                className="w-full px-2 py-1 border border-gray-300 rounded text-gray-900 text-sm"
+              >
+                <option value="Arial">Arial</option>
+                <option value="Times New Roman">Times New Roman</option>
+                <option value="Courier New">Courier New</option>
+                <option value="Georgia">Georgia</option>
+                <option value="Verdana">Verdana</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs text-gray-700 mb-1">Renk</label>
+              <div className="flex gap-2">
+                <input
+                  type="color"
+                  value={textColor}
+                  onChange={(e) => setTextColor(e.target.value)}
+                  className="w-12 h-8 border border-gray-300 rounded cursor-pointer"
+                />
+                <input
+                  type="text"
+                  value={textColor}
+                  onChange={(e) => setTextColor(e.target.value)}
+                  className="flex-1 px-2 py-1 border border-gray-300 rounded text-gray-900 text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setFontWeight(fontWeight === 'bold' ? 'normal' : 'bold')}
+                className={`flex-1 px-3 py-2 rounded text-sm transition-colors ${
+                  fontWeight === 'bold'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-100 text-gray-900'
+                }`}
+              >
+                <strong>B</strong>
+              </button>
+              <button
+                onClick={() => setFontStyle(fontStyle === 'italic' ? 'normal' : 'italic')}
+                className={`flex-1 px-3 py-2 rounded text-sm transition-colors ${
+                  fontStyle === 'italic'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-100 text-gray-900'
+                }`}
+              >
+                <em>I</em>
+              </button>
+            </div>
+          </div>
+
+          <button
+            onClick={handleAddText}
+            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+          >
+            <Type size={18} />
+            Metin Ekle
+          </button>
+        </div>
+
+        {/* Element Actions */}
+        {selectedElement && (
+          <>
+            <hr className="my-6 border-gray-200" />
+            <div className="mb-6">
+              <h4 className="text-sm font-medium text-gray-900 mb-3">Seçili Öğe</h4>
+              <div className="space-y-2">
+                <button
+                  onClick={() => handleDeleteElement(selectedElement)}
+                  className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Trash2 size={18} />
+                  Sil
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Add Angle Dialog */}
+      {showAddAngleDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">
+              Aynı ürünün başka yerine ekleme yapmak ister misiniz?
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Şu anda <strong>{angleDesigns[currentAngleIndex].angleName}</strong> açısındasınız.
+              Başka bir açı seçerek aynı tasarımı farklı yerlere ekleyebilirsiniz.
+            </p>
+            <div className="space-y-2 mb-4">
+              {productConfig.angles
+                .filter(angle => !angleDesigns.some(d => d.angle === angle.id))
+                .map(angle => (
+                  <button
+                    key={angle.id}
+                    onClick={() => handleAddNewAngle(angle.id, angle.name)}
+                    className="w-full px-4 py-2 bg-purple-100 text-purple-900 rounded-lg hover:bg-purple-200 transition-colors text-left"
+                  >
+                    {angle.name}
+                  </button>
+                ))}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowAddAngleDialog(false)}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-900 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Hayır, Devam Et
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
