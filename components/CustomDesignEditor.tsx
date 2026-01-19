@@ -82,8 +82,15 @@ function AIInstructionsModal({
   const [instructions, setInstructions] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedFile(e.target.files[0])
+    }
+  }
+
+  const handleCameraCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setSelectedFile(e.target.files[0])
     }
@@ -105,16 +112,39 @@ function AIInstructionsModal({
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
       <div className="bg-white rounded-xl p-8 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
-        <h3 className="text-2xl font-bold mb-4">🎨 Görsel Yükle</h3>
+        <h3 className="text-2xl font-bold mb-4 text-gray-900">🎨 Görsel Yükle</h3>
         
         <div className="mb-6">
-          <label className="block font-semibold mb-2">Görsel Seçin:</label>
+          <label className="block font-semibold mb-2 text-gray-900">Görsel Seçin:</label>
+          <div className="flex gap-2">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex-1 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center justify-center gap-2"
+            >
+              <Upload size={20} />
+              Dosya Seç
+            </button>
+            <button
+              onClick={() => cameraInputRef.current?.click()}
+              className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2"
+            >
+              📷 Resim Çek
+            </button>
+          </div>
           <input 
             ref={fileInputRef}
             type="file" 
             accept="image/*"
             onChange={handleFileSelect}
-            className="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none p-2"
+            className="hidden"
+          />
+          <input 
+            ref={cameraInputRef}
+            type="file" 
+            accept="image/*"
+            capture="environment"
+            onChange={handleCameraCapture}
+            className="hidden"
           />
           {selectedFile && (
             <p className="text-sm text-green-600 mt-2">✓ {selectedFile.name}</p>
@@ -122,14 +152,14 @@ function AIInstructionsModal({
         </div>
 
         <div className="mb-6">
-          <label className="block font-semibold mb-2">Ek AI Talimatları (Opsiyonel):</label>
+          <label className="block font-semibold mb-2 text-gray-900">Ek AI Talimatları (Opsiyonel):</label>
           <textarea
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
             placeholder="Örn: Karakterin yüzü gülüyor olsun, mavi renk olsun..."
-            className="w-full h-32 p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="w-full h-32 p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
           />
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-gray-600 mt-1">
             Bu talimatlar ana akışı bozmadıkça önceliklendirilir
           </p>
         </div>
@@ -137,7 +167,7 @@ function AIInstructionsModal({
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-gray-900"
           >
             İptal
           </button>
@@ -147,6 +177,48 @@ function AIInstructionsModal({
           >
             Yükle ve Dönüştür
           </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// AI Processing Modal
+function AIProcessingModal({ 
+  isOpen, 
+  progress,
+  step,
+  funMessage
+}: { 
+  isOpen: boolean
+  progress: number
+  step: string
+  funMessage: string
+}) {
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl p-8 max-w-md w-full mx-4">
+        <div className="text-center">
+          <div className="text-6xl mb-4 animate-bounce">✨</div>
+          <h3 className="text-2xl font-bold mb-2 text-gray-900">AI Sihiri Başlıyor...</h3>
+          <p className="text-gray-600 mb-4">{step}</p>
+          
+          {/* Progress Bar */}
+          <div className="w-full bg-gray-200 rounded-full h-4 mb-4 overflow-hidden">
+            <div 
+              className="bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500 h-full rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          
+          <p className="text-sm text-purple-600 font-medium">{progress}% tamamlandı</p>
+          
+          {/* Fun Messages */}
+          <div className="mt-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
+            <p className="text-sm text-gray-700 italic">💡 {funMessage}</p>
+          </div>
         </div>
       </div>
     </div>
@@ -331,6 +403,10 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
   // Modals
   const [showAIModal, setShowAIModal] = useState(false)
   const [showCartModal, setShowCartModal] = useState(false)
+  const [showAIProcessing, setShowAIProcessing] = useState(false)
+  const [aiProgress, setAiProgress] = useState(0)
+  const [aiStep, setAiStep] = useState('')
+  const [aiFunMessage, setAiFunMessage] = useState('')
   
   // UI state
   const [isUploading, setIsUploading] = useState(false)
@@ -350,21 +426,59 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
   // Handle AI image upload
   const handleAIImageUpload = async (instructions: string, file: File) => {
     setIsUploading(true)
-    toast.loading('AI görsel dönüştürülüyor...')
+    setShowAIProcessing(true)
+    setAiProgress(0)
+    
+    // Fun messages to cycle through
+    const funMessages = [
+      "Piksel büyücüleri çalışıyor... ✨",
+      "AI, resminizi inceliyor... 🔍",
+      "Renkleri analiz ediyoruz... 🎨",
+      "8-bit sihri uygulanıyor... 🎮",
+      "Karakteriniz şekilleniyor... 👾",
+      "Detaylar basitleştiriliyor... 🧙‍♂️",
+      "Pixel art harikası yaratılıyor... 🎪",
+      "Son rötuşlar yapılıyor... ✨"
+    ]
+    
+    let messageIndex = 0
+    setAiFunMessage(funMessages[0])
+
+    // Progress simulation
+    const progressInterval = setInterval(() => {
+      setAiProgress(prev => {
+        if (prev >= 90) return prev
+        return prev + Math.random() * 15
+      })
+      messageIndex = (messageIndex + 1) % funMessages.length
+      setAiFunMessage(funMessages[messageIndex])
+    }, 800)
 
     try {
+      setAiStep('📤 Görsel yükleniyor...')
       const formData = new FormData()
       formData.append('image', file)
       if (instructions) {
         formData.append('prompt', instructions)
       }
 
+      setAiStep('🤖 AI analiz yapıyor...')
+      setAiProgress(30)
+      
       const response = await fetch('/api/ai/convert-image', {
         method: 'POST',
         body: formData,
       })
 
+      setAiStep('🎨 Pixel art oluşturuluyor...')
+      setAiProgress(60)
+
       const data = await response.json()
+
+      setAiStep('✅ Tamamlanıyor...')
+      setAiProgress(100)
+
+      clearInterval(progressInterval)
 
       if (data.success && data.imageUrl) {
         const newElement: DesignElement = {
@@ -376,16 +490,24 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
           imageHeight: 45,
         }
         setCurrentElements([...currentElements, newElement])
-        toast.success(`Görsel eklendi! ${data.method ? `(${data.method})` : ''}`)
+        
+        // Wait a moment to show 100% completion
+        setTimeout(() => {
+          setShowAIProcessing(false)
+          toast.success(`Görsel eklendi! ${data.method ? `(${data.method})` : ''}`)
+        }, 500)
       } else {
+        clearInterval(progressInterval)
+        setShowAIProcessing(false)
         toast.error(data.error || 'Görsel yüklenemedi')
       }
     } catch (error) {
       console.error('Upload error:', error)
+      clearInterval(progressInterval)
+      setShowAIProcessing(false)
       toast.error('Bir hata oluştu')
     } finally {
       setIsUploading(false)
-      toast.dismiss()
     }
   }
 
@@ -729,8 +851,25 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
               type="text"
               value={selectedElementData.text || ''}
               onChange={(e) => handleUpdateElement(selectedElement!, { text: e.target.value })}
-              className="w-full p-2 border border-gray-300 rounded mb-2 text-gray-900"
+              className="w-full p-2 border border-gray-300 rounded mb-3 text-gray-900"
             />
+            
+            <label className="block text-sm font-medium mb-1 text-gray-900">Font Tipi</label>
+            <select
+              value={selectedElementData.fontFamily || 'Arial'}
+              onChange={(e) => handleUpdateElement(selectedElement!, { fontFamily: e.target.value })}
+              className="w-full p-2 border border-gray-300 rounded mb-3 text-gray-900"
+            >
+              <option value="Arial">Arial</option>
+              <option value="'Times New Roman'">Times New Roman</option>
+              <option value="'Courier New'">Courier New</option>
+              <option value="Georgia">Georgia</option>
+              <option value="Verdana">Verdana</option>
+              <option value="'Comic Sans MS'">Comic Sans MS</option>
+              <option value="Impact">Impact</option>
+              <option value="'Trebuchet MS'">Trebuchet MS</option>
+            </select>
+            
             <label className="block text-sm font-medium mb-1 text-gray-900">Boyut (Max 15px)</label>
             <input
               type="range"
@@ -760,6 +899,13 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         isOpen={showAIModal}
         onClose={() => setShowAIModal(false)}
         onConfirm={handleAIImageUpload}
+      />
+
+      <AIProcessingModal
+        isOpen={showAIProcessing}
+        progress={aiProgress}
+        step={aiStep}
+        funMessage={aiFunMessage}
       />
 
       <AddToCartModal
