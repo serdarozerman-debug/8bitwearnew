@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCargoTracking } from '@/lib/cargo'
 
+// Force Node.js runtime for Prisma compatibility
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
+
 export async function GET(
   req: NextRequest,
   context: { params: Promise<{ orderNumber: string }> }

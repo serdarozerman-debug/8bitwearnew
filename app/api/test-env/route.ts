@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+// Force Node.js runtime for Prisma compatibility
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
+
 export async function GET(req: NextRequest) {
   const replicateToken = process.env.REPLICATE_API_TOKEN
   const openaiKey = process.env.OPENAI_API_KEY

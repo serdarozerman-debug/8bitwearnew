@@ -10,6 +10,10 @@ import { sendShippingNotificationEmail } from '@/lib/email'
  * 2. Kargo şirketi gönderi oluşturdu
  * 3. Teslimat gerçekleşti
  */
+// Force Node.js runtime for Prisma compatibility
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
+
 export async function POST(req: NextRequest) {
   try {
     // Webhook doğrulama

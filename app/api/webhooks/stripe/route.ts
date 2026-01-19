@@ -4,6 +4,10 @@ import { constructWebhookEvent } from '@/lib/stripe'
 import { sendOrderConfirmationEmail, sendSupplierEmail } from '@/lib/email'
 import { notifyPaymentCompleted, notifyOrderCreated } from '@/lib/make'
 
+// Force Node.js runtime for Prisma compatibility
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.text()

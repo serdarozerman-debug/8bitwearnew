@@ -90,6 +90,10 @@ const MOCK_PRODUCTS = [
   },
 ]
 
+// Force Node.js runtime for Prisma compatibility
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
+
 export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams

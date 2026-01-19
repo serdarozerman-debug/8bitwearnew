@@ -3,6 +3,10 @@ import { prisma } from '@/lib/prisma'
 import { generateCustomDesign } from '@/lib/ai'
 import { notifyDesignCreated } from '@/lib/make'
 
+// Force Node.js runtime for Prisma compatibility
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()

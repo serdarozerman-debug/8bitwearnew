@@ -3,6 +3,10 @@ import { prisma } from '@/lib/prisma'
 import { createInvoice, generateInvoiceNumber } from '@/lib/invoice'
 
 // Bu endpoint kargo teslim edildiğinde tetiklenir (webhook veya manuel)
+// Force Node.js runtime for Prisma compatibility
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
