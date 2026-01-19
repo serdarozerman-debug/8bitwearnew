@@ -342,12 +342,9 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
 
   // Get current mockup image
   const getMockupImage = () => {
-    const angleKey = selectedAngle as keyof typeof productConfig.mockupImages
-    const colorImages = productConfig.mockupImages[angleKey]
-    if (colorImages) {
-      return colorImages[selectedColor] || '/white-tshirt.png'
-    }
-    return '/white-tshirt.png'
+    // Format: /mockups/{product}/{color}/{angle}.png
+    const angleName = selectedAngle.replace(/-/g, '-') // Keep as-is
+    return `${productConfig.mockupBaseUrl}/${selectedColor}/${angleName}.png`
   }
 
   // Handle AI image upload
