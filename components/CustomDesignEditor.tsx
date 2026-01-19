@@ -338,7 +338,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
   const productConfig = PRODUCT_CONFIGS[selectedProduct]
   const availableAngles = productConfig.angles
   const availableColors = productConfig.colors
-  const availableSizes = productConfig.sizes
+  const availableSizes = productConfig.sizes ?? []
 
   // Get current mockup image
   const getMockupImage = () => {
