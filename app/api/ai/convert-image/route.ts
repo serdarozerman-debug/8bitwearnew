@@ -50,13 +50,23 @@ export async function POST(req: NextRequest) {
     console.log('[AI Convert] Input image size:', imageUrl.length, 'bytes')
 
     // Dynamic import sharp for Next.js compatibility
-    const sharp = (await import('sharp')).default
+    console.log('[AI Convert] Importing sharp library...')
+    let sharp: any
+    try {
+      sharp = (await import('sharp')).default
+      console.log('[AI Convert] ✅ Sharp imported successfully')
+    } catch (sharpErr: any) {
+      console.error('[AI Convert] ❌ Sharp import failed:', sharpErr.message)
+      throw new Error('Sharp library failed to load on serverless environment')
+    }
     
     // Base64 data URL'i buffer'a çevir
+    console.log('[AI Convert] Decoding base64 image...')
     const base64Data = imageUrl.replace(/^data:image\/\w+;base64,/, '')
     const inputBuffer = Buffer.from(base64Data, 'base64')
+    console.log('[AI Convert] ✅ Base64 decoded, buffer size:', inputBuffer.length)
     
-    console.log('[AI Convert] Converting to PNG format...')
+    console.log('[AI Convert] Converting to PNG format with sharp...')
     
     // Sharp ile PNG'ye çevir ve 4MB altına düşür
     const pngBuffer = await sharp(inputBuffer)
