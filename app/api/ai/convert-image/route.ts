@@ -284,31 +284,26 @@ CRITICAL FEATURES (must be readable): zipper line, collar, earmuff pads, eyes (2
         return null
       }
 
-      // SDXL image-to-image model version (stability-ai/sdxl image-to-image)
+      // FLUX image-to-image model (black-forest-labs/flux-dev - latest)
       const modelVersion =
-        process.env.REPLICATE_SDXL_VERSION ||
-        'stability-ai/sdxl:39ed52f2a78e934b3ba6e2a089f5b1c712de7dfd16655c0cd860e19fd5d7151a'
+        process.env.REPLICATE_MODEL_VERSION ||
+        'black-forest-labs/flux-dev'
 
       const dataUri = `data:image/png;base64,${pngBuffer.toString('base64')}`
 
       console.log('[AI Convert] Replicate: creating prediction...')
-      const createRes = await fetch('https://api.replicate.com/v1/predictions', {
+      const createRes = await fetch('https://api.replicate.com/v1/models/black-forest-labs/flux-dev/predictions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${replicateToken}`,
         },
         body: JSON.stringify({
-          version: modelVersion,
           input: {
             prompt: finalPrompt + ' Single figure centered.',
-            negative_prompt:
-              'two people, multiple characters, duplicate, twins, crowd, extra person, clone, mirror, shading, gradients, blur, background, text, watermark, lighting effects, realistic details, strands, texture',
             image: dataUri,
+            go_fast: true,
             num_outputs: 1,
-            num_inference_steps: 28,
-            guidance_scale: 6.5, // Düşürdük (çoğaltma riski azalır)
-            strength: 0.75, // Biraz düşürdük
             output_format: 'png',
           },
         }),
