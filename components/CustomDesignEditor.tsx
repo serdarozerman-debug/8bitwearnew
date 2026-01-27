@@ -419,8 +419,36 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
 
   // Get current mockup image
   const getMockupImage = () => {
-    // Format: /mockups/{product}/{color}/{angle}.png
-    const angleName = selectedAngle.replace(/-/g, '-') // Keep as-is
+    // Map colors to Turkish names (for HQ mockups)
+    const colorMap: Record<string, string> = {
+      'white': 'Beyaz',
+      'black': 'Siyah',
+      'blue': 'Mavi',
+      'red': 'Kırmızı',
+      'pink': 'Pembe',
+      'navy': 'Mavi', // Use regular blue for navy
+      'yellow': 'Beyaz', // Fallback to white
+      'green': 'Beyaz' // Fallback to white
+    }
+    
+    // Map angles to Turkish names
+    const angleMap: Record<string, string> = {
+      'front-chest': 'Ön',
+      'right-sleeve': 'Sağ',
+      'left-sleeve': 'Sol',
+      'back': 'Arka'
+    }
+    
+    const turkishColor = colorMap[selectedColor] || 'Beyaz'
+    const turkishAngle = angleMap[selectedAngle] || 'Ön'
+    
+    // Try HQ mockup first (tshirt only for now)
+    if (selectedProduct === 'tshirt') {
+      return `/mockups/tshirt-hq/${turkishColor} ${turkishAngle}.png`
+    }
+    
+    // Fallback to original mockups
+    const angleName = selectedAngle.replace(/-/g, '-')
     return `${productConfig.mockupBaseUrl}/${selectedColor}/${angleName}.png`
   }
 
