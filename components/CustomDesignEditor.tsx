@@ -417,30 +417,6 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
   const availableColors = productConfig.colors
   const availableSizes = productConfig.sizes ?? []
 
-  // Get mockup vertical offset based on color (to normalize different PNG paddings)
-  const getMockupOffset = () => {
-    // Group 1: White & Red have less top padding → need more offset
-    if (selectedColor === 'white' || selectedColor === 'red') {
-      return 0 // No offset, they're already close to top
-    }
-    // Group 2: Black & Blue have more top padding → need less offset
-    if (selectedColor === 'black' || selectedColor === 'blue' || selectedColor === 'navy') {
-      return -12 // Pull them up more
-    }
-    // Default (Pink and others)
-    return -8
-  }
-
-  // Get mockup scale based on color (to normalize different PNG sizes)
-  const getMockupScale = () => {
-    // Black & Blue mockups are smaller in the PNG → scale them up
-    if (selectedColor === 'black' || selectedColor === 'blue' || selectedColor === 'navy') {
-      return 1.08 // Scale up by 8%
-    }
-    // White & Red are already at good size
-    return 1.0
-  }
-
   // Get current mockup image
   const getMockupImage = () => {
     // Map colors to Turkish names (for HQ mockups)
@@ -857,41 +833,55 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         <div className="flex-1 flex items-start justify-center overflow-auto p-4">
           <div className="flex items-start justify-center min-h-full">
             <DndContext onDragEnd={handleDragEnd}>
+              {/* Fixed-size viewer container - handles zoom */}
               <div 
-                className="relative bg-white shadow-2xl overflow-hidden" 
+                className="relative bg-white shadow-2xl" 
                 style={{ 
                   width: '600px',
                   height: '600px',
                   transform: `scale(${zoomLevel})`,
                   transformOrigin: 'top center',
                   transition: 'transform 0.2s ease',
-                  flexShrink: 0,
-                  padding: '5px' // 5px on all sides
+                  flexShrink: 0
                 }}
               >
-                <img 
-                  src={getMockupImage()} 
-                  alt="Product" 
-                  className="w-full h-full object-contain"
+                {/* Inner shirt-frame - normalizes all images */}
+                <div 
+                  className="absolute inset-0"
                   style={{
-                    objectFit: 'contain',
-                    objectPosition: 'center top',
-                    transform: `scale(${getMockupScale()})`,
-                    width: '100%',
-                    height: '100%'
+                    padding: '5px',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    justifyContent: 'center',
+                    overflow: 'hidden'
                   }}
-                />
-                
-                {currentElements.map((element) => (
-                  <DraggableElement
-                    key={element.id}
-                    id={element.id}
-                    element={element}
-                    isSelected={selectedElement === element.id}
-                    onSelect={() => setSelectedElement(element.id)}
-                    onResize={handleResize}
+                >
+                  <img 
+                    src={getMockupImage()} 
+                    alt="Product" 
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'contain',
+                      objectPosition: 'center top',
+                      transformOrigin: 'center top'
+                    }}
                   />
-                ))}
+                </div>
+                
+                {/* Design elements overlay */}
+                <div className="absolute inset-0" style={{ pointerEvents: 'none' }}>
+                  {currentElements.map((element) => (
+                    <DraggableElement
+                      key={element.id}
+                      id={element.id}
+                      element={element}
+                      isSelected={selectedElement === element.id}
+                      onSelect={() => setSelectedElement(element.id)}
+                      onResize={handleResize}
+                    />
+                  ))}
+                </div>
               </div>
             </DndContext>
           </div>
