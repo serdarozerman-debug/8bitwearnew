@@ -802,10 +802,10 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         </div>
 
         {/* Canvas Area */}
-        <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
+        <div className="flex-1 flex items-start justify-center overflow-hidden">
           <DndContext onDragEnd={handleDragEnd}>
             <div 
-              className="relative bg-white rounded-lg shadow-2xl overflow-visible" 
+              className="relative bg-white shadow-2xl overflow-visible" 
               style={{ 
                 width: `${600 * zoomLevel}px`,
                 height: `${600 * zoomLevel}px`,
