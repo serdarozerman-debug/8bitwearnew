@@ -802,14 +802,16 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         </div>
 
         {/* Canvas Area */}
-        <div className="flex-1 flex items-start justify-center overflow-hidden">
+        <div className="flex-1 flex items-start justify-center overflow-auto">
           <DndContext onDragEnd={handleDragEnd}>
             <div 
-              className="relative bg-white shadow-2xl overflow-visible" 
+              className="relative bg-white shadow-2xl" 
               style={{ 
-                width: `${600 * zoomLevel}px`,
-                height: `${600 * zoomLevel}px`,
-                transition: 'all 0.2s ease'
+                width: '600px',
+                height: '600px',
+                transform: `scale(${zoomLevel})`,
+                transformOrigin: 'top center',
+                transition: 'transform 0.2s ease'
               }}
             >
               <img src={getMockupImage()} alt="Product" className="w-full h-full object-contain" />
