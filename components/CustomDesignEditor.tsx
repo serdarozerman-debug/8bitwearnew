@@ -417,6 +417,20 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
   const availableColors = productConfig.colors
   const availableSizes = productConfig.sizes ?? []
 
+  // Get mockup vertical offset based on color (to normalize different PNG paddings)
+  const getMockupOffset = () => {
+    // Group 1: White & Red have less top padding → need more offset
+    if (selectedColor === 'white' || selectedColor === 'red') {
+      return 0 // No offset, they're already close to top
+    }
+    // Group 2: Black & Blue have more top padding → need less offset
+    if (selectedColor === 'black' || selectedColor === 'blue' || selectedColor === 'navy') {
+      return -12 // Pull them up more
+    }
+    // Default (Pink and others)
+    return -8
+  }
+
   // Get current mockup image
   const getMockupImage = () => {
     // Map colors to Turkish names (for HQ mockups)
@@ -851,7 +865,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                   style={{
                     objectFit: 'contain',
                     objectPosition: 'center top',
-                    transform: 'translateY(-8%)',
+                    transform: `translateY(${getMockupOffset()}%)`,
                     height: '116%'
                   }}
                 />
