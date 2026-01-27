@@ -830,32 +830,43 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         </div>
 
         {/* Canvas Area */}
-        <div className="flex-1 flex items-start justify-center overflow-auto">
-          <DndContext onDragEnd={handleDragEnd}>
-            <div 
-              className="relative bg-white shadow-2xl" 
-              style={{ 
-                width: '600px',
-                height: '600px',
-                transform: `scale(${zoomLevel})`,
-                transformOrigin: 'top center',
-                transition: 'transform 0.2s ease'
-              }}
-            >
-              <img src={getMockupImage()} alt="Product" className="w-full h-full object-contain" />
-              
-              {currentElements.map((element) => (
-                <DraggableElement
-                  key={element.id}
-                  id={element.id}
-                  element={element}
-                  isSelected={selectedElement === element.id}
-                  onSelect={() => setSelectedElement(element.id)}
-                  onResize={handleResize}
+        <div className="flex-1 flex items-start justify-center overflow-auto p-4">
+          <div className="flex items-start justify-center min-h-full">
+            <DndContext onDragEnd={handleDragEnd}>
+              <div 
+                className="relative bg-white shadow-2xl" 
+                style={{ 
+                  width: '600px',
+                  height: '600px',
+                  transform: `scale(${zoomLevel})`,
+                  transformOrigin: 'top center',
+                  transition: 'transform 0.2s ease',
+                  flexShrink: 0
+                }}
+              >
+                <img 
+                  src={getMockupImage()} 
+                  alt="Product" 
+                  className="w-full h-full object-contain"
+                  style={{
+                    objectFit: 'contain',
+                    objectPosition: 'center'
+                  }}
                 />
-              ))}
-            </div>
-          </DndContext>
+                
+                {currentElements.map((element) => (
+                  <DraggableElement
+                    key={element.id}
+                    id={element.id}
+                    element={element}
+                    isSelected={selectedElement === element.id}
+                    onSelect={() => setSelectedElement(element.id)}
+                    onResize={handleResize}
+                  />
+                ))}
+              </div>
+            </DndContext>
+          </div>
         </div>
       </div>
 
