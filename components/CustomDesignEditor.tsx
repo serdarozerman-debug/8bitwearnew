@@ -733,12 +733,12 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                 <button
                   key={angle.id}
                   onClick={() => handleAngleChange(angle.id)}
-                  disabled={isDesigned && selectedAngle !== angle.id}
+                  disabled={selectedAngle === angle.id}
                   className={`p-3 rounded-lg border-2 transition relative ${
                     selectedAngle === angle.id
                       ? 'border-purple-500 bg-purple-50'
                       : isDesigned
-                      ? 'border-green-300 bg-green-50 opacity-60'
+                      ? 'border-green-300 bg-green-50 hover:border-green-500 cursor-pointer'
                       : 'border-gray-200 hover:border-purple-300'
                   }`}
                 >
