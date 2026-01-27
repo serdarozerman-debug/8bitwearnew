@@ -431,6 +431,16 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
     return -8
   }
 
+  // Get mockup scale based on color (to normalize different PNG sizes)
+  const getMockupScale = () => {
+    // Black & Blue mockups are smaller in the PNG → scale them up
+    if (selectedColor === 'black' || selectedColor === 'blue' || selectedColor === 'navy') {
+      return 1.08 // Scale up by 8%
+    }
+    // White & Red are already at good size
+    return 1.0
+  }
+
   // Get current mockup image
   const getMockupImage = () => {
     // Map colors to Turkish names (for HQ mockups)
@@ -822,22 +832,22 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         <div className="flex items-center justify-center gap-2 py-2 bg-white border-b">
           <button
             onClick={() => setZoomLevel(Math.max(0.5, zoomLevel - 0.1))}
-            className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium"
+            className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium text-gray-900"
           >
             −
           </button>
-          <span className="text-sm font-medium min-w-[60px] text-center">
+          <span className="text-sm font-medium min-w-[60px] text-center text-gray-900">
             {Math.round(zoomLevel * 100)}%
           </span>
           <button
             onClick={() => setZoomLevel(Math.min(2, zoomLevel + 0.1))}
-            className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium"
+            className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium text-gray-900"
           >
             +
           </button>
           <button
             onClick={() => setZoomLevel(1)}
-            className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium ml-2"
+            className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium ml-2 text-gray-900"
           >
             Reset
           </button>
@@ -865,7 +875,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                   style={{
                     objectFit: 'contain',
                     objectPosition: 'center top',
-                    transform: `translateY(${getMockupOffset()}%)`,
+                    transform: `translateY(${getMockupOffset()}%) scale(${getMockupScale()})`,
                     height: '116%'
                   }}
                 />
