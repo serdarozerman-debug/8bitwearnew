@@ -834,7 +834,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
           <div className="flex items-start justify-center min-h-full">
             <DndContext onDragEnd={handleDragEnd}>
               <div 
-                className="relative bg-white shadow-2xl" 
+                className="relative bg-white shadow-2xl overflow-hidden" 
                 style={{ 
                   width: '600px',
                   height: '600px',
@@ -850,7 +850,9 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                   className="w-full h-full object-contain"
                   style={{
                     objectFit: 'contain',
-                    objectPosition: 'center'
+                    objectPosition: 'center top',
+                    transform: 'translateY(-8%)',
+                    height: '116%'
                   }}
                 />
                 
