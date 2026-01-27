@@ -46,27 +46,27 @@ interface CustomDesignEditorProps {
   onSave: (design: AngleDesign[]) => void
 }
 
-// Product type icons (using images)
+// Product type icons
 const PRODUCT_ICONS: Record<ProductType, string> = {
-  tshirt: '/icons/Tişört icon.png',
-  sweatshirt: '/icons/Sweatshirt icon.png',
-  hat: '/icons/Şapka icon.png',
-  bag: '/icons/Çanta icon.avif',
-  keychain: '/icons/Anahtarlık icon.png'
+  tshirt: '👕',
+  sweatshirt: '🧥',
+  hat: '🧢',
+  bag: '👜',
+  keychain: '🔑'
 }
 
-// Angle icons (using images)
+// Angle icons
 const ANGLE_ICONS: Record<string, string> = {
-  'front-chest': '/icons/Ön Taraf.jpg',
-  'right-sleeve': '/icons/Sağ Kol.png',
-  'left-sleeve': '/icons/Sol Kol.jpg',
-  'back': '/icons/Arka Taraf icon.png',
-  'front-forehead': '/icons/Ön Taraf.jpg',
-  'right-side': '/icons/Sağ Kol.png',
-  'left-side': '/icons/Sol Kol.jpg',
-  'front-face': '/icons/Ön Taraf.jpg',
-  'side-pocket': '/icons/Çanta icon.avif',
-  'flat-white': '/icons/Anahtarlık icon.png'
+  'front-chest': '🎯',
+  'right-sleeve': '➡️',
+  'left-sleeve': '⬅️',
+  'back': '🔙',
+  'front-forehead': '🎯',
+  'right-side': '➡️',
+  'left-side': '⬅️',
+  'front-face': '🎯',
+  'side-pocket': '💼',
+  'flat-white': '⬜'
 }
 
 // Modals
@@ -410,7 +410,6 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
   
   // UI state
   const [isUploading, setIsUploading] = useState(false)
-  const [zoomLevel, setZoomLevel] = useState(1) // 1 = 100%, 0.5 = 50%, 2 = 200%
 
   const productConfig = PRODUCT_CONFIGS[selectedProduct]
   const availableAngles = productConfig.angles
@@ -661,7 +660,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
   const selectedElementData = currentElements.find(el => el.id === selectedElement)
 
   return (
-    <div className="h-screen bg-gray-50 flex overflow-hidden">
+    <div className="min-h-screen bg-gray-50 flex">
       {/* Left Panel - Product Options Only */}
       <div className="w-[420px] bg-white border-r border-gray-200 p-6 overflow-y-auto">
         <h2 className="text-2xl font-bold mb-6 text-gray-900">Ürün Ayarları</h2>
@@ -687,7 +686,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                       : 'border-gray-200 hover:border-purple-300'
                   }`}
                 >
-                  <img src={icon} alt={config.name} className="w-12 h-12 object-contain mb-1" />
+                  <div className="text-3xl mb-1">{icon}</div>
                   <div className="text-xs font-medium text-gray-900">{config.name}</div>
                 </button>
               )
@@ -714,11 +713,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                       : 'border-gray-200 hover:border-purple-300'
                   }`}
                 >
-                  <img 
-                    src={ANGLE_ICONS[angle.id] || '/icons/Ön Taraf.jpg'} 
-                    alt={angle.name} 
-                    className="w-10 h-10 object-contain mb-1 mx-auto" 
-                  />
+                  <div className="text-2xl mb-1">{ANGLE_ICONS[angle.id] || '📍'}</div>
                   <div className="text-xs font-medium text-gray-900">{angle.name}</div>
                   {isDesigned && (
                     <div className="absolute top-1 right-1 text-green-600">✓</div>
@@ -745,7 +740,11 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                 style={{ backgroundColor: COLOR_HEX[color] }}
                 title={COLOR_LABELS[color]}
               >
-                {/* No text - just color block */}
+                <div className="text-xs font-medium" style={{ 
+                  color: ['black', 'navy'].includes(color) ? 'white' : 'black' 
+                }}>
+                  {COLOR_LABELS[color].substring(0, 3)}
+                </div>
               </button>
             ))}
           </div>
@@ -775,58 +774,23 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
       </div>
 
       {/* Center - Canvas */}
-      <div className="flex-1 flex flex-col bg-gray-100">
-        {/* Zoom Controls */}
-        <div className="flex items-center justify-center gap-2 py-2 bg-white border-b">
-          <button
-            onClick={() => setZoomLevel(Math.max(0.5, zoomLevel - 0.1))}
-            className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium"
-          >
-            −
-          </button>
-          <span className="text-sm font-medium min-w-[60px] text-center">
-            {Math.round(zoomLevel * 100)}%
-          </span>
-          <button
-            onClick={() => setZoomLevel(Math.min(2, zoomLevel + 0.1))}
-            className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium"
-          >
-            +
-          </button>
-          <button
-            onClick={() => setZoomLevel(1)}
-            className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium ml-2"
-          >
-            Reset
-          </button>
-        </div>
-
-        {/* Canvas Area */}
-        <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
-          <DndContext onDragEnd={handleDragEnd}>
-            <div 
-              className="relative bg-white rounded-lg shadow-2xl overflow-visible" 
-              style={{ 
-                width: `${600 * zoomLevel}px`,
-                height: `${600 * zoomLevel}px`,
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <img src={getMockupImage()} alt="Product" className="w-full h-full object-contain" />
-              
-              {currentElements.map((element) => (
-                <DraggableElement
-                  key={element.id}
-                  id={element.id}
-                  element={element}
-                  isSelected={selectedElement === element.id}
-                  onSelect={() => setSelectedElement(element.id)}
-                  onResize={handleResize}
-                />
-              ))}
-            </div>
-          </DndContext>
-        </div>
+      <div className="flex-1 flex items-center justify-center p-4 bg-gray-100">
+        <DndContext onDragEnd={handleDragEnd}>
+          <div className="relative bg-white rounded-lg shadow-2xl overflow-hidden w-full max-w-4xl" style={{ aspectRatio: '1/1', maxHeight: 'calc(100vh - 120px)' }}>
+            <img src={getMockupImage()} alt="Product" className="w-full h-full object-contain" />
+            
+            {currentElements.map((element) => (
+              <DraggableElement
+                key={element.id}
+                id={element.id}
+                element={element}
+                isSelected={selectedElement === element.id}
+                onSelect={() => setSelectedElement(element.id)}
+                onResize={handleResize}
+              />
+            ))}
+          </div>
+        </DndContext>
       </div>
 
       {/* Right Panel - Design Tools */}
