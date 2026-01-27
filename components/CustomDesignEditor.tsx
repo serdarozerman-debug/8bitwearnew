@@ -865,7 +865,8 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                   transform: `scale(${zoomLevel})`,
                   transformOrigin: 'top center',
                   transition: 'transform 0.2s ease',
-                  flexShrink: 0
+                  flexShrink: 0,
+                  padding: '20px 10px 0 10px' // Top: 20px, Right: 10px, Bottom: 0, Left: 10px
                 }}
               >
                 <img 
@@ -875,8 +876,9 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                   style={{
                     objectFit: 'contain',
                     objectPosition: 'center top',
-                    transform: `translateY(${getMockupOffset()}%) scale(${getMockupScale()})`,
-                    height: '116%'
+                    transform: `scale(${getMockupScale()})`,
+                    width: '100%',
+                    height: '100%'
                   }}
                 />
                 
