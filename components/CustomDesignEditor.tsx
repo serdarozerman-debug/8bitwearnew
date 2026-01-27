@@ -866,7 +866,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                   transformOrigin: 'top center',
                   transition: 'transform 0.2s ease',
                   flexShrink: 0,
-                  padding: '20px 10px 0 10px' // Top: 20px, Right: 10px, Bottom: 0, Left: 10px
+                  padding: '5px' // 5px on all sides
                 }}
               >
                 <img 
