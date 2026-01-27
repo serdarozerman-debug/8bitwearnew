@@ -419,7 +419,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
 
   // Get current mockup image
   const getMockupImage = () => {
-    // Map colors to Turkish names (for HQ mockups)
+    // Map colors to Turkish names (for normalized mockups)
     const colorMap: Record<string, string> = {
       'white': 'Beyaz',
       'black': 'Siyah',
@@ -442,7 +442,10 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
     const turkishColor = colorMap[selectedColor] || 'Beyaz'
     const turkishAngle = angleMap[selectedAngle] || 'Ön'
     
-    // Try HQ mockup first (tshirt only for now)
+    // Use normalized mockups (all have same visual scale and alignment)
+    if (selectedProduct === 'tshirt') {
+      return `/mockups/normalized/${turkishColor} ${turkishAngle}.png`
+    }
     if (selectedProduct === 'tshirt') {
       return `/mockups/tshirt-hq/${turkishColor} ${turkishAngle}.png`
     }
