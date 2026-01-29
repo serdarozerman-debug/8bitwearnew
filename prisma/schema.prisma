@@ -135,6 +135,9 @@ model Order {
   shippedAt        DateTime?
   deliveredAt      DateTime?
   
+  // 3D Print Automation (NEW)
+  sentToSupplierAt DateTime?
+  
   // Fatura
   invoiceNumber    String?
   invoiceUrl       String?
@@ -215,6 +218,11 @@ model AIGeneration {
   originalImageUrl String
   prompt          String    @db.Text
   generatedImageUrl String?
+  
+  // 3D Print Files (NEW)
+  pixelArtUrl     String?   // 64x64 pixel art PNG
+  stlUrl          String?   // STL file for 3D printing
+  stlStats        Json?     // { width_mm, height_mm, depth_mm, opaque_pixels, file_size_kb }
   
   // Onay süreci
   attemptNumber   Int       @default(1)
