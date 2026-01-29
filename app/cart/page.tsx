@@ -78,42 +78,63 @@ export default function CartPage() {
       return
     }
     
-    // For testing: Convert pixel art to STL
     toast.info('3D dosyalar oluşturuluyor...')
     
     try {
-      // Test endpoint to create STL files
-      const response = await fetch('/api/3d-print/test')
-      const data = await response.json()
-      
-      if (data.success) {
-        toast.success(`✅ STL dosyası oluşturuldu!`)
+      // Process each cart item with custom design
+      for (const item of cartItems) {
+        console.log('[Checkout] Processing item:', item)
         
-        // Show result in console
-        console.log('[3D Print Test]', data)
-        console.log('[STL URL]', data.result.stlUrl)
-        console.log('[Local Path]', data.result.localPath)
+        // Check if item has custom design with pixel art
+        const pixelArtUrl = item.designPreview || item.customDesign?.pixelArtUrl
         
-        // Optional: Open STL file in new tab
-        window.open(`http://localhost:3200${data.result.stlUrl}`, '_blank')
+        if (!pixelArtUrl) {
+          console.warn('[Checkout] No pixel art found for item:', item.id)
+          toast.warning(`Ürün ${item.productName} için tasarım bulunamadı`)
+          continue
+        }
         
-        // Show success message with instructions
-        toast.success(
-          '🎉 STL dosyası oluşturuldu! Tarayıcınızda yeni sekmede açıldı. ' +
-          'Dosya: /public/3d-prints/ klasöründe',
-          { duration: 10000 }
-        )
-      } else {
-        toast.error(`STL oluşturulamadı: ${data.error}`)
-        console.error('[3D Print Test] Error:', data)
+        console.log('[Checkout] Converting pixel art to STL:', pixelArtUrl)
+        
+        // Convert pixel art to STL
+        const response = await fetch('/api/3d-print/convert', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            pixelArtImageUrl: pixelArtUrl,
+            orderNumber: item.id
+          })
+        })
+        
+        const data = await response.json()
+        
+        if (data.success) {
+          toast.success(`✅ STL dosyası oluşturuldu!`)
+          
+          // Show result in console
+          console.log('[3D Print Success]', data)
+          console.log('[STL URL]', data.stlUrl)
+          console.log('[Stats]', data.stats)
+          
+          // Open STL file in new tab
+          window.open(`http://localhost:3200${data.stlUrl}`, '_blank')
+          
+          // Show success message
+          toast.success(
+            `🎉 ${item.productName} için STL dosyası oluşturuldu! ` +
+            'Tarayıcınızda yeni sekmede açıldı.',
+            { duration: 10000 }
+          )
+        } else {
+          toast.error(`STL oluşturulamadı: ${data.error}`)
+          console.error('[3D Print Error]', data)
+        }
       }
+      
     } catch (error) {
       console.error('[Checkout] Error:', error)
       toast.error('Bir hata oluştu. Konsolu kontrol edin.')
     }
-    
-    // TODO: Real checkout flow will be implemented later
-    // For now, just show the STL test result
   }
 
   if (isLoading) {
