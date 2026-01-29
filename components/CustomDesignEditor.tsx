@@ -641,11 +641,37 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
   const handleFinalAddToCart = () => {
     saveCurrentAngleDesign()
     onSave(allAngleDesigns)
-    toast.success('Sepete eklendi!')
-    setShowCartModal(false)
     
-    // Navigate to cart
-    window.location.href = '/cart'
+    // Save to localStorage cart
+    try {
+      const cartItem = {
+        id: `custom-${Date.now()}`,
+        productName: 'Premium Tişört (Özel Tasarım)',
+        productImage: getMockupImage(),
+        color: COLOR_LABELS[selectedColor as ProductColor] || selectedColor,
+        size: selectedSize,
+        quantity: 1,
+        price: 299.99,
+        designPreview: getMockupImage(),
+        customDesign: allAngleDesigns
+      }
+      
+      const existingCart = localStorage.getItem('cart')
+      const cart = existingCart ? JSON.parse(existingCart) : []
+      cart.push(cartItem)
+      localStorage.setItem('cart', JSON.stringify(cart))
+      
+      toast.success('Sepete eklendi!')
+      setShowCartModal(false)
+      
+      // Navigate to cart
+      setTimeout(() => {
+        window.location.href = '/cart'
+      }, 500)
+    } catch (error) {
+      console.error('Failed to add to cart:', error)
+      toast.error('Sepete eklenirken hata oluştu')
+    }
   }
 
   const handleAddNewAngle = () => {
