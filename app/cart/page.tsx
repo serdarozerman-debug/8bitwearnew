@@ -72,14 +72,48 @@ export default function CartPage() {
     return cartItems.reduce((total, item) => total + (item.price * item.quantity), 0)
   }
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (cartItems.length === 0) {
       toast.error('Sepetiniz boş!')
       return
     }
     
-    // TODO: Implement checkout flow
-    toast.info('Ödeme sayfası yakında aktif olacak!')
+    // For testing: Convert pixel art to STL
+    toast.info('3D dosyalar oluşturuluyor...')
+    
+    try {
+      // Test endpoint to create STL files
+      const response = await fetch('/api/3d-print/test')
+      const data = await response.json()
+      
+      if (data.success) {
+        toast.success(`✅ STL dosyası oluşturuldu!`)
+        
+        // Show result in console
+        console.log('[3D Print Test]', data)
+        console.log('[STL URL]', data.result.stlUrl)
+        console.log('[Local Path]', data.result.localPath)
+        
+        // Optional: Open STL file in new tab
+        window.open(`http://localhost:3200${data.result.stlUrl}`, '_blank')
+        
+        // Show success message with instructions
+        toast.success(
+          '🎉 STL dosyası oluşturuldu! Tarayıcınızda yeni sekmede açıldı. ' +
+          'Dosya: /public/3d-prints/ klasöründe',
+          { duration: 10000 }
+        )
+      } else {
+        toast.error(`STL oluşturulamadı: ${data.error}`)
+        console.error('[3D Print Test] Error:', data)
+      }
+    } catch (error) {
+      console.error('[Checkout] Error:', error)
+      toast.error('Bir hata oluştu. Konsolu kontrol edin.')
+    }
+    
+    // TODO: Real checkout flow will be implemented later
+    // For now, just show the STL test result
   }
 
   if (isLoading) {

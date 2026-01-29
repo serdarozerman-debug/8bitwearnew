@@ -4,6 +4,7 @@ import { useState, useRef } from 'react'
 import { DndContext, DragEndEvent, useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { HexColorPicker } from 'react-colorful'
+import html2canvas from 'html2canvas'
 import { 
   Upload, Type, Trash2, Save, Plus, Edit2, Check, X, ShoppingCart
 } from 'lucide-react'
@@ -408,6 +409,9 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
   const [aiStep, setAiStep] = useState('')
   const [aiFunMessage, setAiFunMessage] = useState('')
   
+  // Ref for mockup screenshot
+  const mockupContainerRef = useRef<HTMLDivElement>(null)
+  
   // UI state
   const [isUploading, setIsUploading] = useState(false)
   const [zoomLevel, setZoomLevel] = useState(1) // 1 = 100%, 0.5 = 50%, 2 = 200%
@@ -638,9 +642,31 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
     setShowCartModal(true)
   }
 
-  const handleFinalAddToCart = () => {
+  const handleFinalAddToCart = async () => {
     saveCurrentAngleDesign()
     onSave(allAngleDesigns)
+    
+    // Capture mockup screenshot
+    let designPreview = getMockupImage()
+    
+    try {
+      if (mockupContainerRef.current) {
+        toast.info('Tasarım kaydediliyor...')
+        
+        const canvas = await html2canvas(mockupContainerRef.current, {
+          backgroundColor: '#ffffff',
+          scale: 2,
+          logging: false,
+          useCORS: true
+        })
+        
+        designPreview = canvas.toDataURL('image/png')
+        console.log('[Screenshot] Captured design preview')
+      }
+    } catch (error) {
+      console.error('[Screenshot] Failed to capture:', error)
+      // Continue with default mockup image
+    }
     
     // Save to localStorage cart
     try {
@@ -652,7 +678,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         size: selectedSize,
         quantity: 1,
         price: 299.99,
-        designPreview: getMockupImage(),
+        designPreview: designPreview, // Use captured screenshot
         customDesign: allAngleDesigns
       }
       
@@ -867,6 +893,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
             <DndContext onDragEnd={handleDragEnd}>
               {/* Fixed-size viewer container - handles zoom */}
               <div 
+                ref={mockupContainerRef}
                 className="relative bg-white shadow-2xl" 
                 style={{ 
                   width: '600px',
