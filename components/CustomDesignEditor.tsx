@@ -643,6 +643,9 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
     onSave(allAngleDesigns)
     toast.success('Sepete eklendi!')
     setShowCartModal(false)
+    
+    // Navigate to cart
+    window.location.href = '/cart'
   }
 
   const handleAddNewAngle = () => {
@@ -873,16 +876,17 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                 </div>
                 
                 {/* Design elements overlay */}
-                <div className="absolute inset-0" style={{ pointerEvents: 'none' }}>
+                <div className="absolute inset-0" style={{ pointerEvents: 'auto' }}>
                   {currentElements.map((element) => (
-                    <DraggableElement
-                      key={element.id}
-                      id={element.id}
-                      element={element}
-                      isSelected={selectedElement === element.id}
-                      onSelect={() => setSelectedElement(element.id)}
-                      onResize={handleResize}
-                    />
+                    <div key={element.id} style={{ pointerEvents: 'auto' }}>
+                      <DraggableElement
+                        id={element.id}
+                        element={element}
+                        isSelected={selectedElement === element.id}
+                        onSelect={() => setSelectedElement(element.id)}
+                        onResize={handleResize}
+                      />
+                    </div>
                   ))}
                 </div>
               </div>
