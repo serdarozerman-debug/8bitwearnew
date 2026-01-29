@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
 
     // Create a simple 8x8 pixel art (base64 encoded)
     // This is a simple smiley face pattern
-    const testPixelArtBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAASklEQVR4AWP4z8DwH4r+QxEMMDAwMPxHFvuPLI4sDlOALA5TACOPLg4jTlCBMMDwH10cRgAmDmOjiMPEYQrQxWEK0MVhCtDFAQCXXmYhnQH7XgAAAABJRU5ErkJggg=='
+    const testPixelArtBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAQklEQVR4nGNkgIL/Jxj+w9ggwGjBwAiimbBJIosxwRgwHchskBwjNt3IgAVdF4YV2ByJzIbbhc14kKlgE9CNRxYDAGu5HWKOkB4vAAAAAElFTkSuQmCC'
     
     const pixelArtDataUrl = `data:image/png;base64,${testPixelArtBase64}`
 
