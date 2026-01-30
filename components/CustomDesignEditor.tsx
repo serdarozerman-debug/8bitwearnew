@@ -431,6 +431,12 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
   const [aiStep, setAiStep] = useState('')
   const [aiFunMessage, setAiFunMessage] = useState('')
   
+  // Text customization
+  const [showTextModal, setShowTextModal] = useState(false)
+  const [textInput, setTextInput] = useState('')
+  const [textColor, setTextColor] = useState('#000000')
+  const [textFont, setTextFont] = useState('Arial')
+  
   // Ref for mockup screenshot
   const mockupContainerRef = useRef<HTMLDivElement>(null)
   
@@ -562,19 +568,33 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
 
   // Add text
   const handleAddText = () => {
+    setTextInput('')
+    setTextColor('#000000')
+    setTextFont('Arial')
+    setShowTextModal(true)
+  }
+  
+  const handleConfirmText = () => {
+    if (!textInput.trim()) {
+      toast.error('Lütfen bir metin girin')
+      return
+    }
+    
     const newElement: DesignElement = {
       id: `text-${Date.now()}`,
       type: 'text',
       position: { x: 200, y: 100 },
-      text: 'Metin Ekle',
+      text: textInput,
       fontSize: 12,
-      fontFamily: 'Arial',
-      color: '#000000',
+      fontFamily: textFont,
+      color: textColor,
       fontWeight: 'normal',
       fontStyle: 'normal',
     }
     setCurrentElements([...currentElements, newElement])
     setSelectedElement(newElement.id)
+    setShowTextModal(false)
+    toast.success('Metin eklendi!')
   }
 
   // Delete element
@@ -753,7 +773,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         color: COLOR_LABELS[selectedColor as ProductColor] || selectedColor,
         size: selectedSize,
         quantity: 1,
-        price: 299.99 + (anglesToSave.length - 1) * 50, // +50 TL per additional angle
+        price: 299.99 + (anglesToSave.length - 1) * 29, // First angle: 299 TL, additional angles: +29 TL each
         designPreview: anglesToSave[0].designPreview,
         pixelArtUrl: pixelArtUrl,
         multiAngleDesigns: anglesToSave, // All angles with their designs
@@ -1368,6 +1388,123 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         step={aiStep}
         funMessage={aiFunMessage}
       />
+
+      {/* Text Customization Modal */}
+      {showTextModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <h3 className="text-2xl font-bold text-gray-900 mb-4">Metin Ekle</h3>
+            
+            <div className="space-y-4">
+              {/* Text Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Metin
+                </label>
+                <input
+                  type="text"
+                  value={textInput}
+                  onChange={(e) => setTextInput(e.target.value)}
+                  placeholder="Metninizi girin..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  autoFocus
+                />
+              </div>
+
+              {/* Font Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Font
+                </label>
+                <select
+                  value={textFont}
+                  onChange={(e) => setTextFont(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                >
+                  <option value="Arial">Arial</option>
+                  <option value="'Times New Roman'">Times New Roman</option>
+                  <option value="'Courier New'">Courier New</option>
+                  <option value="Georgia">Georgia</option>
+                  <option value="Verdana">Verdana</option>
+                  <option value="'Comic Sans MS'">Comic Sans MS</option>
+                  <option value="Impact">Impact</option>
+                  <option value="'Trebuchet MS'">Trebuchet MS</option>
+                  <option value="'Lucida Console'">Lucida Console</option>
+                  <option value="'Palatino Linotype'">Palatino</option>
+                  <option value="Tahoma">Tahoma</option>
+                  <option value="'Century Gothic'">Century Gothic</option>
+                  <option value="'Franklin Gothic Medium'">Franklin Gothic</option>
+                  <option value="'Brush Script MT'">Brush Script</option>
+                  <option value="'Copperplate Gothic'">Copperplate</option>
+                </select>
+              </div>
+
+              {/* Color Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Renk
+                </label>
+                <div className="grid grid-cols-8 gap-2">
+                  {[
+                    '#000000', '#FFFFFF', '#FF0000', '#00FF00', 
+                    '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF',
+                    '#800000', '#008000', '#000080', '#808000',
+                    '#800080', '#008080', '#FFA500', '#FFC0CB',
+                    '#A52A2A', '#DEB887', '#5F9EA0', '#7FFF00',
+                    '#D2691E', '#FF7F50', '#6495ED', '#DC143C'
+                  ].map((color) => (
+                    <button
+                      key={color}
+                      onClick={() => setTextColor(color)}
+                      className={`w-10 h-10 rounded-lg border-2 transition ${
+                        textColor === color ? 'border-purple-500 scale-110' : 'border-gray-300'
+                      }`}
+                      style={{ backgroundColor: color }}
+                      title={color}
+                    />
+                  ))}
+                </div>
+                <input
+                  type="color"
+                  value={textColor}
+                  onChange={(e) => setTextColor(e.target.value)}
+                  className="w-full mt-3 h-10 rounded-lg cursor-pointer"
+                />
+              </div>
+
+              {/* Preview */}
+              <div className="p-4 bg-gray-100 rounded-lg">
+                <p className="text-sm text-gray-600 mb-2">Önizleme:</p>
+                <div
+                  style={{
+                    fontFamily: textFont,
+                    color: textColor,
+                    fontSize: '24px'
+                  }}
+                >
+                  {textInput || 'Metninizi girin...'}
+                </div>
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowTextModal(false)}
+                className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
+              >
+                İptal
+              </button>
+              <button
+                onClick={handleConfirmText}
+                className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+              >
+                Ekle
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

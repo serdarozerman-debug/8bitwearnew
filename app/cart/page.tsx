@@ -6,6 +6,13 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { toast } from 'sonner'
 
+interface AngleDesign {
+  angle: string
+  angleName: string
+  elements: any[]
+  designPreview: string
+}
+
 interface CartItem {
   id: string
   productName: string
@@ -15,7 +22,8 @@ interface CartItem {
   quantity: number
   price: number
   designPreview?: string
-  pixelArtUrl?: string  // URL of the pixel art for 3D print conversion
+  pixelArtUrl?: string
+  multiAngleDesigns?: AngleDesign[] // Multiple angles with previews
 }
 
 export default function CartPage() {
@@ -214,22 +222,42 @@ export default function CartPage() {
                   className="bg-white rounded-lg p-6 shadow-sm border border-gray-200"
                 >
                   <div className="flex gap-6">
-                    {/* Product Image */}
+                    {/* Product Images - Multi-Angle Preview */}
                     <div className="flex-shrink-0">
-                      <div className="w-32 h-32 bg-gray-100 rounded-lg overflow-hidden relative">
-                        {item.designPreview ? (
-                          <Image
-                            src={item.designPreview}
-                            alt={item.productName}
-                            fill
-                            className="object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-400">
-                            <ShoppingCart className="w-12 h-12" />
-                          </div>
-                        )}
-                      </div>
+                      {item.multiAngleDesigns && item.multiAngleDesigns.length > 0 ? (
+                        <div className="space-y-2">
+                          {item.multiAngleDesigns.map((angleDesign, idx) => (
+                            <div key={idx} className="relative">
+                              <div className="w-32 h-32 bg-gray-100 rounded-lg overflow-hidden relative border-2 border-gray-200">
+                                <Image
+                                  src={angleDesign.designPreview}
+                                  alt={angleDesign.angleName}
+                                  fill
+                                  className="object-cover"
+                                />
+                              </div>
+                              <div className="absolute bottom-1 left-1 bg-black/70 text-white text-[10px] px-2 py-0.5 rounded">
+                                {angleDesign.angleName}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="w-32 h-32 bg-gray-100 rounded-lg overflow-hidden relative">
+                          {item.designPreview ? (
+                            <Image
+                              src={item.designPreview}
+                              alt={item.productName}
+                              fill
+                              className="object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400">
+                              <ShoppingCart className="w-12 h-12" />
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Product Info */}
@@ -241,6 +269,11 @@ export default function CartPage() {
                       <div className="space-y-1 text-sm text-gray-600 mb-4">
                         <p>Renk: <span className="font-medium">{item.color}</span></p>
                         <p>Beden: <span className="font-medium">{item.size}</span></p>
+                        {item.multiAngleDesigns && (
+                          <p className="text-green-600 font-medium">
+                            {item.multiAngleDesigns.length} açı tasarımı
+                          </p>
+                        )}
                         <p className="text-lg font-bold text-purple-600">
                           {item.price.toFixed(2)} ₺
                         </p>
