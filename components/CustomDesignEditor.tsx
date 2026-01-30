@@ -425,7 +425,15 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
   const getMockupImage = () => {
     // Use standard mockups with English names (compatible with all systems)
     const angleName = selectedAngle
-    return `${productConfig.mockupBaseUrl}/${selectedColor}/${angleName}.png`
+    const mockupUrl = `${productConfig.mockupBaseUrl}/${selectedColor}/${angleName}.png`
+    console.log('[Mockup Debug]', { 
+      productType: selectedProduct,
+      color: selectedColor, 
+      angle: selectedAngle,
+      baseUrl: productConfig.mockupBaseUrl,
+      fullUrl: mockupUrl 
+    })
+    return mockupUrl
   }
 
   // Handle AI image upload
