@@ -742,7 +742,20 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
   const selectedElementData = currentElements.find(el => el.id === selectedElement)
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row overflow-x-hidden">
+    <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row overflow-x-hidden relative">
+      {/* Scroll Indicator - Mobile Only */}
+      <div className="lg:hidden fixed bottom-20 right-4 z-50 flex flex-col gap-2">
+        <div className="w-1 h-16 bg-gray-300 rounded-full overflow-hidden">
+          <div 
+            className="w-full bg-purple-500 rounded-full transition-all"
+            style={{ 
+              height: '30%',
+              transform: 'translateY(0%)'
+            }}
+          />
+        </div>
+      </div>
+
       {/* Left Panel - Product Options Only */}
       <div className="w-full lg:w-[420px] bg-white border-b lg:border-b-0 lg:border-r border-gray-200 p-4 lg:p-6 overflow-y-auto max-h-[50vh] lg:max-h-screen">
         <h2 className="hidden lg:block text-2xl font-bold mb-6 text-gray-900">Ürün Ayarları</h2>
@@ -816,7 +829,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         <div className="mb-3 lg:mb-6">
           <label className="hidden lg:block font-semibold mb-3 text-gray-900 text-base">Renk</label>
           {/* Mobile: Horizontal Scroll with Circles, Desktop: Grid with Circles */}
-          <div className="lg:grid lg:grid-cols-4 lg:gap-2 flex lg:flex-none gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
+          <div className="lg:grid lg:grid-cols-4 lg:gap-2 flex lg:flex-none gap-3 overflow-x-auto pb-3 lg:pb-2 -mx-1 px-1 scrollbar-hide">
             {availableColors.map((color) => (
               <button
                 key={color}
@@ -836,7 +849,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                 title={COLOR_LABELS[color]}
               >
                 {/* Always Circle */}
-                <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-full" />
+                <div className="w-12 h-12 lg:w-12 lg:h-12 rounded-full" />
                 {selectedColor === color && (
                   <div className="absolute inset-0 flex items-center justify-center">
                     <span className="text-white text-xl drop-shadow-lg">✓</span>
@@ -893,7 +906,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
           {selectedElement && (
             <button
               onClick={handleDeleteElement}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium"
+              className="w-full flex items-center justify-center gap-2 px-3 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium"
             >
               <Trash2 size={18} />
               Seçili Öğeyi Sil
