@@ -811,7 +811,13 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
             {availableColors.map((color) => (
               <button
                 key={color}
-                onClick={() => setSelectedColor(color)}
+                onClick={() => {
+                  // Save current elements before color change
+                  if (currentElements.length > 0) {
+                    saveCurrentAngleDesign()
+                  }
+                  setSelectedColor(color)
+                }}
                 className={`flex-shrink-0 rounded-full transition relative ${
                   selectedColor === color
                     ? 'ring-4 ring-purple-400'
@@ -978,11 +984,11 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                   ))}
                 </div>
 
-                {/* Floating Add to Cart Button - Top Right */}
+                {/* Floating Add to Cart Button - Top Center */}
                 <button
                   onClick={handleAddToCartClick}
                   disabled={currentElements.length === 0}
-                  className="absolute top-4 right-4 flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-full hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-bold text-sm shadow-lg z-10"
+                  className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-full hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-bold text-sm shadow-lg z-10"
                   style={{ pointerEvents: 'auto' }}
                 >
                   <ShoppingCart size={20} />
