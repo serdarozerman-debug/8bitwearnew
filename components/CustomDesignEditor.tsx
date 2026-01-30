@@ -763,25 +763,6 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
 
       {/* Left Panel - Product Options Only */}
       <div className="w-full lg:w-[420px] bg-white border-b lg:border-b-0 lg:border-r border-gray-200 p-4 lg:p-6 overflow-y-auto max-h-[calc(50vh+60px)] lg:max-h-screen">
-        {/* Quick Action Buttons - Desktop: Top of Left Panel */}
-        <div className="hidden lg:block space-y-3 mb-6">
-          <button
-            onClick={() => setShowAIModal(true)}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
-          >
-            <Upload size={20} />
-            Görsel Yükle
-          </button>
-
-          <button
-            onClick={handleAddText}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-          >
-            <Type size={20} />
-            Metin Ekle
-          </button>
-        </div>
-
         {/* Product Type Selection */}
         <div className="mb-3 lg:mb-6">
           <label className="hidden lg:block font-semibold mb-3 text-gray-900 text-base">Ürün Tipi</label>
@@ -905,22 +886,22 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
           </div>
         )}
 
-        {/* Quick Action Buttons - Mobile: Below Size, Desktop: In Right Panel */}
-        <div className="lg:hidden space-y-2 mt-3">
+        {/* Quick Action Buttons - Mobile & Desktop: Bottom of Left Panel */}
+        <div className="space-y-2 mt-6 pt-6 border-t border-gray-200">
           <div className="flex gap-2">
             <button
               onClick={() => setShowAIModal(true)}
-              className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm font-medium"
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 lg:px-4 lg:py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm lg:text-base font-medium"
             >
-              <Upload size={18} />
+              <Upload size={18} className="lg:w-5 lg:h-5" />
               Görsel Yükle
             </button>
 
             <button
               onClick={handleAddText}
-              className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 lg:px-4 lg:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm lg:text-base font-medium"
             >
-              <Type size={18} />
+              <Type size={18} className="lg:w-5 lg:h-5" />
               Metin Ekle
             </button>
           </div>
@@ -928,9 +909,9 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
           {selectedElement && (
             <button
               onClick={handleDeleteElement}
-              className="w-full flex items-center justify-center gap-2 px-3 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium"
+              className="w-full flex items-center justify-center gap-2 px-3 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm lg:text-base font-medium"
             >
-              <Trash2 size={18} />
+              <Trash2 size={18} className="lg:w-5 lg:h-5" />
               Seçili Öğeyi Sil
             </button>
           )}
@@ -1059,12 +1040,10 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
 
       {/* Right Panel - Design Preview */}
       <div className="w-full lg:w-80 bg-white border-t lg:border-t-0 lg:border-l border-gray-200 p-4 lg:p-6 overflow-y-auto max-h-screen">
-        <h2 className="hidden lg:block text-2xl font-bold mb-6 text-gray-900">Tasarım Özeti</h2>
-
         {/* Design Preview - Desktop Only */}
-        <div className="hidden lg:block mb-6">
+        <div className="hidden lg:block mb-4">
           <label className="block font-semibold mb-3 text-gray-900">Önizleme</label>
-          <div className="border-2 border-gray-200 rounded-lg overflow-hidden bg-gray-50 aspect-square flex items-center justify-center">
+          <div className="border-2 border-gray-200 rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center" style={{ aspectRatio: '1', maxHeight: '200px' }}>
             {currentElements.length > 0 ? (
               <div 
                 className="relative w-full h-full"
