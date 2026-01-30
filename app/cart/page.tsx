@@ -15,6 +15,7 @@ interface CartItem {
   quantity: number
   price: number
   designPreview?: string
+  pixelArtUrl?: string  // URL of the pixel art for 3D print conversion
 }
 
 export default function CartPage() {
@@ -85,8 +86,8 @@ export default function CartPage() {
       for (const item of cartItems) {
         console.log('[Checkout] Processing item:', item)
         
-        // Check if item has custom design with pixel art
-        const pixelArtUrl = item.designPreview || item.customDesign?.pixelArtUrl
+        // Check if item has pixel art URL (preferred) or design preview (fallback)
+        const pixelArtUrl = item.pixelArtUrl || item.designPreview || item.customDesign?.pixelArtUrl
         
         if (!pixelArtUrl) {
           console.warn('[Checkout] No pixel art found for item:', item.id)
@@ -94,7 +95,7 @@ export default function CartPage() {
           continue
         }
         
-        console.log('[Checkout] Converting pixel art to STL:', pixelArtUrl)
+        console.log('[Checkout] Converting pixel art to STL:', pixelArtUrl.substring(0, 100) + '...')
         
         // Convert pixel art to STL
         const response = await fetch('/api/3d-print/convert', {

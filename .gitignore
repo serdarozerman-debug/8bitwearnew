@@ -42,3 +42,7 @@ next-env.d.ts
 # prisma
 prisma/migrations
 .env*.local
+
+# 3D print files (generated dynamically, can be very large)
+/public/3d-prints/*.stl
+

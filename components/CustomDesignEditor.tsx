@@ -668,6 +668,12 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
       // Continue with default mockup image
     }
     
+    // Extract pixel art URL from current elements (for 3D print conversion)
+    const pixelArtElement = currentElements.find(el => el.type === 'image' && el.imageUrl)
+    const pixelArtUrl = pixelArtElement?.imageUrl || null
+    
+    console.log('[Cart] Pixel art URL for 3D conversion:', pixelArtUrl)
+    
     // Save to localStorage cart
     try {
       const cartItem = {
@@ -678,7 +684,8 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         size: selectedSize,
         quantity: 1,
         price: 299.99,
-        designPreview: designPreview, // Use captured screenshot
+        designPreview: designPreview, // Mockup screenshot for display
+        pixelArtUrl: pixelArtUrl,     // Pixel art URL for 3D print conversion
         customDesign: allAngleDesigns
       }
       
