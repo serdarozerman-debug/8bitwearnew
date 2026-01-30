@@ -763,7 +763,24 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
 
       {/* Left Panel - Product Options Only */}
       <div className="w-full lg:w-[420px] bg-white border-b lg:border-b-0 lg:border-r border-gray-200 p-4 lg:p-6 overflow-y-auto max-h-[calc(50vh+60px)] lg:max-h-screen">
-        <h2 className="hidden lg:block text-2xl font-bold mb-6 text-gray-900">Ürün Ayarları</h2>
+        {/* Quick Action Buttons - Desktop: Top of Left Panel */}
+        <div className="hidden lg:block space-y-3 mb-6">
+          <button
+            onClick={() => setShowAIModal(true)}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+          >
+            <Upload size={20} />
+            Görsel Yükle
+          </button>
+
+          <button
+            onClick={handleAddText}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+          >
+            <Type size={20} />
+            Metin Ekle
+          </button>
+        </div>
 
         {/* Product Type Selection */}
         <div className="mb-3 lg:mb-6">
@@ -1040,37 +1057,102 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         </div>
       </div>
 
-      {/* Right Panel - Design Tools */}
+      {/* Right Panel - Design Preview */}
       <div className="w-full lg:w-80 bg-white border-t lg:border-t-0 lg:border-l border-gray-200 p-4 lg:p-6 overflow-y-auto max-h-screen">
-        <h2 className="hidden lg:block text-2xl font-bold mb-6 text-gray-900">Tasarım Araçları</h2>
+        <h2 className="hidden lg:block text-2xl font-bold mb-6 text-gray-900">Tasarım Özeti</h2>
 
-        {/* Action Buttons - Desktop Only (Mobile shows in left panel) */}
-        <div className="hidden lg:block space-y-3 mb-6">
-          <button
-            onClick={() => setShowAIModal(true)}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
-          >
-            <Upload size={20} />
-            Görsel Yükle
-          </button>
+        {/* Design Preview - Desktop Only */}
+        <div className="hidden lg:block mb-6">
+          <label className="block font-semibold mb-3 text-gray-900">Önizleme</label>
+          <div className="border-2 border-gray-200 rounded-lg overflow-hidden bg-gray-50 aspect-square flex items-center justify-center">
+            {currentElements.length > 0 ? (
+              <div 
+                className="relative w-full h-full"
+                style={{ 
+                  backgroundImage: `url(${getMockupImage()})`,
+                  backgroundSize: 'contain',
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat'
+                }}
+              >
+                {currentElements.map((el) => (
+                  <div
+                    key={el.id}
+                    style={{
+                      position: 'absolute',
+                      left: el.position.x,
+                      top: el.position.y,
+                      transform: 'scale(0.3)',
+                      transformOrigin: 'top left',
+                      pointerEvents: 'none'
+                    }}
+                  >
+                    {el.type === 'image' ? (
+                      <img 
+                        src={el.imageUrl} 
+                        alt="Design element" 
+                        style={{ 
+                          width: el.imageWidth || 128,
+                          height: el.imageHeight || 128,
+                          objectFit: 'contain'
+                        }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          fontFamily: el.fontFamily || 'Arial',
+                          fontSize: `${el.fontSize || 24}px`,
+                          color: el.color || '#000000',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {el.text}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400">Tasarım eklenmedi</p>
+            )}
+          </div>
+        </div>
 
-          <button
-            onClick={handleAddText}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-          >
-            <Type size={20} />
-            Metin Ekle
-          </button>
-
-          {selectedElement && (
-            <button
-              onClick={handleDeleteElement}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
-            >
-              <Trash2 size={20} />
-              Sil
-            </button>
-          )}
+        {/* Product Summary - Desktop Only */}
+        <div className="hidden lg:block mb-6 p-4 bg-gray-50 rounded-lg">
+          <label className="block font-semibold mb-3 text-gray-900">Ürün Detayları</label>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Ürün Tipi:</span>
+              <span className="font-medium text-gray-900">{PRODUCT_CONFIGS[selectedProduct].name}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Açı:</span>
+              <span className="font-medium text-gray-900">
+                {availableAngles.find(a => a.id === selectedAngle)?.name || selectedAngle}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-600">Renk:</span>
+              <div className="flex items-center gap-2">
+                <div 
+                  className="w-5 h-5 rounded-full border border-gray-300" 
+                  style={{ backgroundColor: COLOR_HEX[selectedColor] }}
+                />
+                <span className="font-medium text-gray-900">{COLOR_LABELS[selectedColor]}</span>
+              </div>
+            </div>
+            {availableSizes.length > 0 && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Beden:</span>
+                <span className="font-medium text-gray-900">{selectedSize}</span>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span className="text-gray-600">Tasarım Öğeleri:</span>
+              <span className="font-medium text-gray-900">{currentElements.length}</span>
+            </div>
+          </div>
         </div>
 
         {/* Element List - Desktop Only */}
