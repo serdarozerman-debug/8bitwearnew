@@ -423,7 +423,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
   
   // UI state
   const [isUploading, setIsUploading] = useState(false)
-  const [zoomLevel, setZoomLevel] = useState(1) // 1 = 100%, 0.5 = 50%, 2 = 200%
+  const [zoomLevel, setZoomLevel] = useState(1.4) // Default 140% zoom for better visibility
 
   const productConfig = PRODUCT_CONFIGS[selectedProduct]
   const availableAngles = productConfig.angles
@@ -768,8 +768,8 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         {/* Product Type Selection */}
         <div className="mb-3 lg:mb-6">
           <label className="hidden lg:block font-semibold mb-3 text-gray-900 text-base">Ürün Tipi</label>
-          {/* Mobile: Horizontal Scroll, Desktop: Grid */}
-          <div className="lg:grid lg:grid-cols-3 lg:gap-2 flex lg:flex-none gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
+          {/* Horizontal Scroll Slider - Mobile & Desktop */}
+          <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
             {Object.entries(PRODUCT_ICONS).map(([type, icon]) => {
               const config = PRODUCT_CONFIGS[type as ProductType]
               return (
@@ -798,8 +798,8 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         {/* Angle Selection */}
         <div className="mb-3 lg:mb-6">
           <label className="hidden lg:block font-semibold mb-3 text-gray-900 text-base">Açı</label>
-          {/* Mobile: Horizontal Scroll, Desktop: Grid */}
-          <div className="lg:grid lg:grid-cols-2 lg:gap-2 flex lg:flex-none gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
+          {/* Horizontal Scroll Slider - Mobile & Desktop */}
+          <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
             {availableAngles.map((angle) => {
               const isDesigned = allAngleDesigns.some(d => d.angle === angle.id)
               return (
@@ -833,8 +833,8 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         {/* Color Selection */}
         <div className="mb-3 lg:mb-6">
           <label className="hidden lg:block font-semibold mb-3 text-gray-900 text-base">Renk</label>
-          {/* Mobile: Horizontal Scroll with Circles, Desktop: Grid with Circles */}
-          <div className="lg:grid lg:grid-cols-4 lg:gap-2 flex lg:flex-none gap-3 overflow-x-auto py-2 -mx-1 px-1 scrollbar-hide">
+          {/* Horizontal Scroll Slider - Mobile & Desktop */}
+          <div className="flex gap-3 overflow-x-auto py-2 -mx-1 px-1 scrollbar-hide">
             {availableColors.map((color) => (
               <button
                 key={color}
@@ -869,8 +869,8 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         {availableSizes.length > 0 && (
           <div className="mb-3 lg:mb-6">
             <label className="hidden lg:block font-semibold mb-3 text-gray-900 text-base">Beden</label>
-            {/* Mobile: Horizontal Scroll, Desktop: Grid */}
-            <div className="lg:grid lg:grid-cols-3 lg:gap-2 flex lg:flex-none gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
+            {/* Horizontal Scroll Slider - Mobile & Desktop */}
+            <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
               {availableSizes.map((size) => (
                 <button
                   key={size}
