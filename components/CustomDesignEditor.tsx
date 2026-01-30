@@ -1012,11 +1012,11 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                   ))}
                 </div>
 
-                {/* Floating Add to Cart Button - Top Center */}
+                {/* Floating Add to Cart Button - Top Center - Mobile Only */}
                 <button
                   onClick={handleAddToCartClick}
                   disabled={currentElements.length === 0}
-                  className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-full hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-bold text-sm shadow-lg z-10"
+                  className="lg:hidden absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-full hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-bold text-sm shadow-lg z-10"
                   style={{ pointerEvents: 'auto' }}
                 >
                   <ShoppingCart size={20} />
@@ -1027,12 +1027,12 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
           </div>
         </div>
 
-        {/* Add to Cart Button - Below Canvas (Mobile/Desktop) */}
-        <div className="bg-white border-t border-gray-200 p-3 lg:p-4">
+        {/* Add to Cart Button - Below Canvas - Mobile Only */}
+        <div className="lg:hidden bg-white border-t border-gray-200 p-3">
           <button
             onClick={handleAddToCartClick}
             disabled={currentElements.length === 0}
-            className="w-full flex items-center justify-center gap-2 px-6 py-3.5 lg:py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-bold text-base lg:text-lg shadow-md"
+            className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-bold text-base shadow-md"
           >
             <ShoppingCart size={24} />
             Sepete Ekle
@@ -1141,6 +1141,16 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
             <div className="text-sm text-gray-600">{selectedElementData.fontSize}px</div>
           </div>
         )}
+
+        {/* Add to Cart Button - Desktop Only */}
+        <button
+          onClick={handleAddToCartClick}
+          disabled={currentElements.length === 0}
+          className="hidden lg:flex w-full items-center justify-center gap-2 px-6 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-bold text-lg"
+        >
+          <ShoppingCart size={24} />
+          Sepete Ekle
+        </button>
       </div>
 
       {/* Modals */}
