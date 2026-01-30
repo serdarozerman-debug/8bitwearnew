@@ -277,11 +277,11 @@ export async function POST(req: NextRequest) {
       // ]
     })
 
-    console.log('[Supplier] ✅ Email sent successfully:', result.id)
+    console.log('[Supplier] ✅ Email sent successfully:', result.data?.id || 'sent')
 
     return NextResponse.json({
       success: true,
-      emailId: result.id,
+      emailId: result.data?.id || 'sent',
       sentTo: supplierEmail
     })
 
