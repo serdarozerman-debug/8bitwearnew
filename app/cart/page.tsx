@@ -87,7 +87,7 @@ export default function CartPage() {
         console.log('[Checkout] Processing item:', item)
         
         // Check if item has pixel art URL (preferred) or design preview (fallback)
-        const pixelArtUrl = item.pixelArtUrl || item.designPreview || item.customDesign?.pixelArtUrl
+        const pixelArtUrl = item.pixelArtUrl || item.designPreview
         
         if (!pixelArtUrl) {
           console.warn('[Checkout] No pixel art found for item:', item.id)
