@@ -40,6 +40,14 @@ interface AngleDesign {
   elements: DesignElement[]
 }
 
+// For cart items with multi-angle support
+interface CartAngleDesign {
+  angle: ProductAngle
+  angleName: string
+  elements: DesignElement[]
+  designPreview: string // screenshot
+}
+
 interface CustomDesignEditorProps {
   productImage: string
   productName: string
@@ -410,9 +418,14 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
   const [currentElements, setCurrentElements] = useState<DesignElement[]>([])
   const [selectedElement, setSelectedElement] = useState<string | null>(null)
   
+  // Multi-angle cart system
+  const [savedAnglesForCart, setSavedAnglesForCart] = useState<CartAngleDesign[]>([])
+  const [isMultiAngleMode, setIsMultiAngleMode] = useState(false) // After first "Add to Cart"
+  const [lockedProduct, setLockedProduct] = useState<ProductType | null>(null)
+  const [lockedColor, setLockedColor] = useState<ProductColor | null>(null)
+  
   // Modals
   const [showAIModal, setShowAIModal] = useState(false)
-  const [showCartModal, setShowCartModal] = useState(false)
   const [showAIProcessing, setShowAIProcessing] = useState(false)
   const [aiProgress, setAiProgress] = useState(0)
   const [aiStep, setAiStep] = useState('')
@@ -621,43 +634,99 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
   }
 
   // Handle "Sepete Ekle"
-  const handleAddToCartClick = () => {
+  const handleAddToCartClick = async () => {
     if (currentElements.length === 0) {
       toast.error('Lütfen en az bir element ekleyin')
       return
     }
     saveCurrentAngleDesign()
-    setShowCartModal(true)
-  }
-
-  const handleFinalAddToCart = async () => {
-    saveCurrentAngleDesign()
-    onSave(allAngleDesigns)
     
-    // Capture mockup screenshot
+    // Capture screenshot for this angle
     let designPreview = getMockupImage()
     
     try {
       if (mockupContainerRef.current) {
-        toast.info('Tasarım kaydediliyor...')
-        
         const canvas = await html2canvas(mockupContainerRef.current, {
           backgroundColor: '#ffffff',
           scale: 2,
           logging: false,
           useCORS: true
         })
-        
         designPreview = canvas.toDataURL('image/png')
-        console.log('[Screenshot] Captured design preview')
       }
     } catch (error) {
       console.error('[Screenshot] Failed to capture:', error)
-      // Continue with default mockup image
     }
     
-    // Extract pixel art URL from current elements (for 3D print conversion)
-    const pixelArtElement = currentElements.find(el => el.type === 'image' && el.imageUrl)
+    // Get angle name
+    const angleName = availableAngles.find(a => a.id === selectedAngle)?.name || selectedAngle
+    
+    // Add current angle to saved angles
+    const newAngle: CartAngleDesign = {
+      angle: selectedAngle,
+      angleName: angleName,
+      elements: [...currentElements],
+      designPreview: designPreview
+    }
+    
+    // Check if this angle already exists (update it)
+    const existingIndex = savedAnglesForCart.findIndex(a => a.angle === selectedAngle)
+    let updatedAngles: CartAngleDesign[]
+    
+    if (existingIndex >= 0) {
+      // Update existing angle
+      updatedAngles = [...savedAnglesForCart]
+      updatedAngles[existingIndex] = newAngle
+      toast.success(`${angleName} güncellendi!`)
+    } else {
+      // Add new angle
+      if (savedAnglesForCart.length >= 4) {
+        toast.error('Maksimum 4 açı ekleyebilirsiniz')
+        return
+      }
+      updatedAngles = [...savedAnglesForCart, newAngle]
+      toast.success(`${angleName} eklendi!`)
+    }
+    
+    setSavedAnglesForCart(updatedAngles)
+    
+    // Enter multi-angle mode and lock product/color
+    if (!isMultiAngleMode) {
+      setIsMultiAngleMode(true)
+      setLockedProduct(selectedProduct)
+      setLockedColor(selectedColor)
+      toast.info('Başka açı eklemek isterseniz açı seçin, yoksa "Sepete Ekle" yapın')
+    }
+    
+    // Clear current elements for next angle
+    setCurrentElements([])
+    setSelectedElement(null)
+  }
+  
+  const handleRemoveAngleFromCart = (angle: ProductAngle) => {
+    const updated = savedAnglesForCart.filter(a => a.angle !== angle)
+    setSavedAnglesForCart(updated)
+    
+    const angleName = availableAngles.find(a => a.id === angle)?.name || angle
+    toast.success(`${angleName} silindi`)
+    
+    // If no more angles, exit multi-angle mode
+    if (updated.length === 0) {
+      setIsMultiAngleMode(false)
+      setLockedProduct(null)
+      setLockedColor(null)
+    }
+  }
+
+  const handleFinalAddToCart = async () => {
+    if (savedAnglesForCart.length === 0) {
+      toast.error('En az bir açı için tasarım eklemelisiniz')
+      return
+    }
+    
+    // Extract pixel art URL from first angle's first image element
+    const firstAngle = savedAnglesForCart[0]
+    const pixelArtElement = firstAngle.elements.find(el => el.type === 'image' && el.imageUrl)
     const pixelArtUrl = pixelArtElement?.imageUrl || null
     
     console.log('[Cart] Pixel art URL for 3D conversion:', pixelArtUrl)
@@ -666,15 +735,20 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
     try {
       const cartItem = {
         id: `custom-${Date.now()}`,
-        productName: 'Premium Tişört (Özel Tasarım)',
-        productImage: getMockupImage(),
+        productName: `${PRODUCT_CONFIGS[selectedProduct].name} (Özel Tasarım)`,
+        productImage: savedAnglesForCart[0].designPreview, // First angle's preview
         color: COLOR_LABELS[selectedColor as ProductColor] || selectedColor,
         size: selectedSize,
         quantity: 1,
-        price: 299.99,
-        designPreview: designPreview, // Mockup screenshot for display
-        pixelArtUrl: pixelArtUrl,     // Pixel art URL for 3D print conversion
-        customDesign: allAngleDesigns
+        price: 299.99 + (savedAnglesForCart.length - 1) * 50, // +50 TL per additional angle
+        designPreview: savedAnglesForCart[0].designPreview,
+        pixelArtUrl: pixelArtUrl,
+        multiAngleDesigns: savedAnglesForCart, // All angles with their designs
+        customDesign: savedAnglesForCart.map(a => ({
+          angle: a.angle,
+          angleName: a.angleName,
+          elements: a.elements
+        }))
       }
       
       const existingCart = localStorage.getItem('cart')
@@ -683,7 +757,15 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
       localStorage.setItem('cart', JSON.stringify(cart))
       
       toast.success('Sepete eklendi!')
-      setShowCartModal(false)
+      
+      // Reset for new product
+      setSavedAnglesForCart([])
+      setIsMultiAngleMode(false)
+      setLockedProduct(null)
+      setLockedColor(null)
+      setCurrentElements([])
+      setAllAngleDesigns([])
+      setSelectedElement(null)
       
       // Navigate to cart
       setTimeout(() => {
@@ -695,25 +777,11 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
     }
   }
 
-  const handleAddNewAngle = () => {
-    saveCurrentAngleDesign()
-    setShowCartModal(false)
-    setCurrentElements([])
-    setSelectedElement(null)
-    
-    // Find next available angle
-    const usedAngles = allAngleDesigns.map(d => d.angle)
-    const nextAngle = availableAngles.find(a => !usedAngles.includes(a.id))
-    if (nextAngle) {
-      setSelectedAngle(nextAngle.id)
-      toast.info(`Yeni açı: ${nextAngle.name}`)
-    } else {
-      toast.info('Tüm açılar kullanıldı')
-    }
-  }
-
   const handleStartFresh = () => {
-    setShowCartModal(false)
+    setSavedAnglesForCart([])
+    setIsMultiAngleMode(false)
+    setLockedProduct(null)
+    setLockedColor(null)
     setAllAngleDesigns([])
     setCurrentElements([])
     setSelectedElement(null)
@@ -765,23 +833,31 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
       <div className="w-full lg:w-[420px] bg-white border-b lg:border-b-0 lg:border-r border-gray-200 p-4 lg:p-6 overflow-y-auto max-h-[calc(50vh+60px)] lg:max-h-screen">
         {/* Product Type Selection */}
         <div className="mb-3 lg:mb-6">
-          <label className="hidden lg:block font-semibold mb-3 text-gray-900 text-base">Ürün Tipi</label>
+          <label className="hidden lg:block font-semibold mb-3 text-gray-900 text-base">Ürün Tipi {isMultiAngleMode && '🔒'}</label>
           {/* Horizontal Scroll Slider - Mobile & Desktop */}
           <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
             {Object.entries(PRODUCT_ICONS).map(([type, icon]) => {
               const config = PRODUCT_CONFIGS[type as ProductType]
+              const isLocked = isMultiAngleMode && lockedProduct !== type
               return (
                 <button
                   key={type}
                   onClick={() => {
+                    if (isLocked) {
+                      toast.error('Ürün tipi kilitli! Önce mevcut tasarımı tamamlayın.')
+                      return
+                    }
                     setSelectedProduct(type as ProductType)
                     setSelectedAngle(config.angles[0].id)
                     setCurrentElements([])
                     setAllAngleDesigns([])
                   }}
+                  disabled={isLocked}
                   className={`p-2 lg:p-3 rounded-lg border-2 transition flex flex-col items-center min-w-[70px] lg:min-w-0 flex-shrink-0 ${
                     selectedProduct === type
                       ? 'border-purple-500 bg-purple-50'
+                      : isLocked
+                      ? 'border-gray-200 bg-gray-100 opacity-50 cursor-not-allowed'
                       : 'border-gray-200 hover:border-purple-300'
                   }`}
                 >
@@ -830,36 +906,51 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
 
         {/* Color Selection */}
         <div className="mb-3 lg:mb-6">
-          <label className="hidden lg:block font-semibold mb-3 text-gray-900 text-base">Renk</label>
+          <label className="hidden lg:block font-semibold mb-3 text-gray-900 text-base">Renk {isMultiAngleMode && '🔒'}</label>
           {/* Horizontal Scroll Slider - Mobile & Desktop */}
           <div className="flex gap-3 overflow-x-auto py-2 -mx-1 px-1 scrollbar-hide">
-            {availableColors.map((color) => (
-              <button
-                key={color}
-                onClick={() => {
-                  // Save current elements before color change
-                  if (currentElements.length > 0) {
-                    saveCurrentAngleDesign()
-                  }
-                  setSelectedColor(color)
-                }}
-                className={`flex-shrink-0 rounded-full transition relative ${
-                  selectedColor === color
-                    ? 'ring-4 ring-purple-400'
-                    : 'ring-2 ring-gray-200 hover:ring-gray-300'
-                }`}
-                style={{ backgroundColor: COLOR_HEX[color] }}
-                title={COLOR_LABELS[color]}
-              >
-                {/* Always Circle */}
-                <div className="w-12 h-12 lg:w-12 lg:h-12 rounded-full" />
-                {selectedColor === color && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-white text-xl drop-shadow-lg">✓</span>
-                  </div>
-                )}
-              </button>
-            ))}
+            {availableColors.map((color) => {
+              const isLocked = isMultiAngleMode && lockedColor !== color
+              return (
+                <button
+                  key={color}
+                  onClick={() => {
+                    if (isLocked) {
+                      toast.error('Renk kilitli! Önce mevcut tasarımı tamamlayın.')
+                      return
+                    }
+                    // Save current elements before color change
+                    if (currentElements.length > 0) {
+                      saveCurrentAngleDesign()
+                    }
+                    setSelectedColor(color)
+                  }}
+                  disabled={isLocked}
+                  className={`flex-shrink-0 rounded-full transition relative ${
+                    selectedColor === color
+                      ? 'ring-4 ring-purple-400'
+                      : isLocked
+                      ? 'ring-2 ring-gray-200 opacity-40 cursor-not-allowed'
+                      : 'ring-2 ring-gray-200 hover:ring-gray-300'
+                  }`}
+                  style={{ backgroundColor: COLOR_HEX[color] }}
+                  title={COLOR_LABELS[color]}
+                >
+                  {/* Always Circle */}
+                  <div className="w-12 h-12 lg:w-12 lg:h-12 rounded-full" />
+                  {selectedColor === color && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-white text-xl drop-shadow-lg">✓</span>
+                    </div>
+                  )}
+                  {isLocked && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-gray-600 text-xl">🔒</span>
+                    </div>
+                  )}
+                </button>
+              )
+            })}
           </div>
         </div>
 
@@ -1017,8 +1108,8 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                   className="lg:hidden absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-full hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-bold text-sm shadow-lg z-10"
                   style={{ pointerEvents: 'auto' }}
                 >
-                  <ShoppingCart size={20} />
-                  Sepete Ekle
+                  <Plus size={20} />
+                  {savedAnglesForCart.length === 0 ? 'Açı Ekle' : 'Başka Açı Ekle'}
                 </button>
               </div>
             </DndContext>
@@ -1032,18 +1123,21 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
             disabled={currentElements.length === 0}
             className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-bold text-base shadow-md"
           >
-            <ShoppingCart size={24} />
-            Sepete Ekle
+            <Plus size={24} />
+            {savedAnglesForCart.length === 0 ? 'Açı Ekle' : 'Başka Açı Ekle'}
           </button>
         </div>
       </div>
 
-      {/* Right Panel - Design Preview */}
+      {/* Right Panel - Saved Angles & Cart Summary */}
       <div className="w-full lg:w-80 bg-white border-t lg:border-t-0 lg:border-l border-gray-200 p-4 lg:p-6 overflow-y-auto max-h-screen">
-        {/* Design Preview - Desktop Only */}
+        {/* Current Design Preview - Desktop Only */}
         <div className="hidden lg:block mb-4">
-          <label className="block font-semibold mb-3 text-gray-900">Önizleme</label>
-          <div className="border-2 border-gray-200 rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center" style={{ aspectRatio: '1', maxHeight: '200px' }}>
+          <label className="block font-semibold mb-3 text-gray-900">Şu Anki Açı</label>
+          <div className="text-sm text-gray-600 mb-2">
+            {availableAngles.find(a => a.id === selectedAngle)?.name || selectedAngle}
+          </div>
+          <div className="border-2 border-gray-200 rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center" style={{ aspectRatio: '1', maxHeight: '180px' }}>
             {currentElements.length > 0 ? (
               <div 
                 className="relative w-full h-full"
@@ -1061,7 +1155,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                       position: 'absolute',
                       left: el.position.x,
                       top: el.position.y,
-                      transform: 'scale(0.3)',
+                      transform: 'scale(0.25)',
                       transformOrigin: 'top left',
                       pointerEvents: 'none'
                     }}
@@ -1092,126 +1186,109 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-400">Tasarım eklenmedi</p>
+              <p className="text-xs text-gray-400">Tasarım eklenmedi</p>
             )}
+          </div>
+          <div className="mt-2 text-xs text-gray-500">
+            {currentElements.filter(el => el.type === 'image').length} görsel, {currentElements.filter(el => el.type === 'text').length} metin
           </div>
         </div>
 
-        {/* Product Summary - Desktop Only */}
-        <div className="hidden lg:block mb-6 p-4 bg-gray-50 rounded-lg">
-          <label className="block font-semibold mb-3 text-gray-900">Ürün Detayları</label>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-600">Ürün Tipi:</span>
-              <span className="font-medium text-gray-900">{PRODUCT_CONFIGS[selectedProduct].name}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Açı:</span>
-              <span className="font-medium text-gray-900">
-                {availableAngles.find(a => a.id === selectedAngle)?.name || selectedAngle}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600">Renk:</span>
-              <div className="flex items-center gap-2">
-                <div 
-                  className="w-5 h-5 rounded-full border border-gray-300" 
-                  style={{ backgroundColor: COLOR_HEX[selectedColor] }}
-                />
-                <span className="font-medium text-gray-900">{COLOR_LABELS[selectedColor]}</span>
-              </div>
-            </div>
-            {availableSizes.length > 0 && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Beden:</span>
-                <span className="font-medium text-gray-900">{selectedSize}</span>
-              </div>
-            )}
-            <div className="flex justify-between">
-              <span className="text-gray-600">Tasarım Öğeleri:</span>
-              <span className="font-medium text-gray-900">{currentElements.length}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Element List - Desktop Only */}
-        <div className="hidden lg:block mb-6">
-          <label className="block font-semibold mb-3 text-gray-900">Tasarım Öğeleri ({currentElements.length})</label>
-          {currentElements.length === 0 ? (
-            <p className="text-sm text-gray-500">Henüz öğe eklenmedi</p>
-          ) : (
+        {/* Saved Angles List - Desktop Only */}
+        {savedAnglesForCart.length > 0 && (
+          <div className="hidden lg:block mb-4">
+            <label className="block font-semibold mb-3 text-gray-900">
+              Eklenen Açılar ({savedAnglesForCart.length}/4)
+            </label>
             <div className="space-y-2">
-              {currentElements.map((el) => (
+              {savedAnglesForCart.map((angleDesign) => (
                 <div
-                  key={el.id}
-                  onClick={() => setSelectedElement(el.id)}
-                  className={`p-2 rounded border cursor-pointer transition ${
-                    selectedElement === el.id
-                      ? 'border-purple-500 bg-purple-50'
-                      : 'border-gray-200 hover:border-purple-300'
-                  }`}
+                  key={angleDesign.angle}
+                  className="p-3 border-2 border-green-200 bg-green-50 rounded-lg"
                 >
-                  <div className="text-sm font-medium text-gray-900">
-                    {el.type === 'image' ? '🖼️ Görsel' : '📝 Metin'}
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <div className="font-semibold text-sm text-gray-900">{angleDesign.angleName}</div>
+                      <div className="text-xs text-gray-600 mt-1">
+                        {angleDesign.elements.filter(el => el.type === 'image').length} görsel, {angleDesign.elements.filter(el => el.type === 'text').length} metin
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleRemoveAngleFromCart(angleDesign.angle)}
+                      className="text-red-600 hover:text-red-700 p-1"
+                      title="Bu açıyı sil"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
-                  {el.type === 'text' && (
-                    <div className="text-xs text-gray-600 truncate">{el.text}</div>
-                  )}
+                  <div className="grid grid-cols-5 gap-1 mt-2">
+                    {angleDesign.elements.slice(0, 5).map((el, idx) => (
+                      <div key={idx} className="text-xs bg-white rounded px-1 py-0.5 text-center truncate">
+                        {el.type === 'image' ? '🖼️' : '📝'}
+                      </div>
+                    ))}
+                    {angleDesign.elements.length > 5 && (
+                      <div className="text-xs bg-white rounded px-1 py-0.5 text-center">
+                        +{angleDesign.elements.length - 5}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
-          )}
-        </div>
-
-        {/* Element Editor - Desktop Only */}
-        {selectedElementData && selectedElementData.type === 'text' && (
-          <div className="hidden lg:block mb-6 p-4 bg-gray-50 rounded-lg">
-            <label className="block font-semibold mb-2 text-gray-900">Metin Düzenle</label>
-            <input
-              type="text"
-              value={selectedElementData.text || ''}
-              onChange={(e) => handleUpdateElement(selectedElement!, { text: e.target.value })}
-              className="w-full p-2 border border-gray-300 rounded mb-3 text-gray-900"
-            />
-            
-            <label className="block text-sm font-medium mb-1 text-gray-900">Font Tipi</label>
-            <select
-              value={selectedElementData.fontFamily || 'Arial'}
-              onChange={(e) => handleUpdateElement(selectedElement!, { fontFamily: e.target.value })}
-              className="w-full p-2 border border-gray-300 rounded mb-3 text-gray-900"
-            >
-              <option value="Arial">Arial</option>
-              <option value="'Times New Roman'">Times New Roman</option>
-              <option value="'Courier New'">Courier New</option>
-              <option value="Georgia">Georgia</option>
-              <option value="Verdana">Verdana</option>
-              <option value="'Comic Sans MS'">Comic Sans MS</option>
-              <option value="Impact">Impact</option>
-              <option value="'Trebuchet MS'">Trebuchet MS</option>
-            </select>
-            
-            <label className="block text-sm font-medium mb-1 text-gray-900">Boyut (Max 15px)</label>
-            <input
-              type="range"
-              min="8"
-              max="15"
-              value={selectedElementData.fontSize || 12}
-              onChange={(e) => handleUpdateElement(selectedElement!, { fontSize: parseInt(e.target.value) })}
-              className="w-full mb-2"
-            />
-            <div className="text-sm text-gray-600">{selectedElementData.fontSize}px</div>
+            {savedAnglesForCart.length < 4 && (
+              <p className="text-xs text-gray-500 mt-2">
+                {4 - savedAnglesForCart.length} açı daha ekleyebilirsiniz
+              </p>
+            )}
           </div>
         )}
 
-        {/* Add to Cart Button - Desktop Only */}
-        <button
-          onClick={handleAddToCartClick}
-          disabled={currentElements.length === 0}
-          className="hidden lg:flex w-full items-center justify-center gap-2 px-6 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-bold text-lg"
-        >
-          <ShoppingCart size={24} />
-          Sepete Ekle
-        </button>
+        {/* Product Lock Info */}
+        {isMultiAngleMode && (
+          <div className="hidden lg:block mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="text-xs font-semibold text-blue-900 mb-1">🔒 Ürün Kilitlendi</div>
+            <div className="text-xs text-blue-700">
+              <div>Ürün: {PRODUCT_CONFIGS[selectedProduct].name}</div>
+              <div>Renk: {COLOR_LABELS[selectedColor]}</div>
+              <div className="mt-1 text-blue-600">Başka açılar için tasarım ekleyebilirsiniz</div>
+            </div>
+          </div>
+        )}
+
+        {/* Final Add to Cart Button - Desktop Only */}
+        {savedAnglesForCart.length > 0 && (
+          <button
+            onClick={handleFinalAddToCart}
+            className="hidden lg:flex w-full items-center justify-center gap-2 px-6 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-bold text-lg"
+          >
+            <ShoppingCart size={24} />
+            Sepete Ekle ({savedAnglesForCart.length} Açı)
+          </button>
+        )}
+        
+        {/* Current Angle Action - Desktop Only */}
+        {!savedAnglesForCart.length && (
+          <button
+            onClick={handleAddToCartClick}
+            disabled={currentElements.length === 0}
+            className="hidden lg:flex w-full items-center justify-center gap-2 px-6 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-bold text-lg"
+          >
+            <Plus size={24} />
+            Açı Ekle
+          </button>
+        )}
+        
+        {savedAnglesForCart.length > 0 && savedAnglesForCart.length < 4 && (
+          <button
+            onClick={handleAddToCartClick}
+            disabled={currentElements.length === 0}
+            className="hidden lg:flex w-full items-center justify-center gap-2 px-6 py-3 mt-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+          >
+            <Plus size={20} />
+            Başka Açı Ekle
+          </button>
+        )}
       </div>
 
       {/* Modals */}
@@ -1226,14 +1303,6 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         progress={aiProgress}
         step={aiStep}
         funMessage={aiFunMessage}
-      />
-
-      <AddToCartModal
-        isOpen={showCartModal}
-        onClose={() => setShowCartModal(false)}
-        onAddToCart={handleFinalAddToCart}
-        onAddNewAngle={handleAddNewAngle}
-        onStartFresh={handleStartFresh}
       />
     </div>
   )
