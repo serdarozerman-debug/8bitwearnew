@@ -909,6 +909,14 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                       objectPosition: 'center top',
                       transformOrigin: 'center top'
                     }}
+                    onLoad={(e) => {
+                      const imgElement = e.target as HTMLImageElement
+                      console.log('[Mockup] Image loaded successfully:', imgElement.src, imgElement.naturalWidth, 'x', imgElement.naturalHeight)
+                    }}
+                    onError={(e) => {
+                      const imgElement = e.target as HTMLImageElement
+                      console.error('[Mockup ERROR] Failed to load image:', imgElement.src)
+                    }}
                   />
                 </div>
                 
