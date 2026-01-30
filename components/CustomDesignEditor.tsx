@@ -721,6 +721,16 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
     // Clear current elements for next angle
     setCurrentElements([])
     setSelectedElement(null)
+    
+    // Auto-switch to next available angle
+    const usedAngles = updatedAngles.map(a => a.angle)
+    const nextAngle = availableAngles.find(a => !usedAngles.includes(a.id))
+    if (nextAngle) {
+      setSelectedAngle(nextAngle.id)
+      toast.info(`Yeni açı: ${nextAngle.name}`)
+    } else {
+      toast.info('Tüm açılar kullanıldı! "Sepete Ekle" yapabilirsiniz.')
+    }
   }
   
   const handleRemoveAngleFromCart = (angle: ProductAngle) => {
@@ -739,23 +749,45 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
   }
 
   const handleFinalAddToCart = async () => {
+    let anglesToSave = [...savedAnglesForCart]
+    
     // If there's a current design not yet saved, save it first
     if (currentElements.length > 0 && !savedAnglesForCart.some(a => a.angle === selectedAngle)) {
-      await handleAddToCartClick() // This will save current angle
+      // Capture screenshot for current angle
+      let designPreview = getMockupImage()
+      
+      try {
+        if (mockupContainerRef.current) {
+          const canvas = await html2canvas(mockupContainerRef.current, {
+            backgroundColor: '#ffffff',
+            scale: 2,
+            logging: false,
+            useCORS: true
+          })
+          designPreview = canvas.toDataURL('image/png')
+        }
+      } catch (error) {
+        console.error('[Screenshot] Failed to capture:', error)
+      }
+      
+      const angleName = availableAngles.find(a => a.id === selectedAngle)?.name || selectedAngle
+      const newAngle: CartAngleDesign = {
+        angle: selectedAngle,
+        angleName: angleName,
+        elements: [...currentElements],
+        designPreview: designPreview
+      }
+      
+      anglesToSave = [...savedAnglesForCart, newAngle]
+      console.log('[Cart] Auto-saved current angle:', angleName)
     }
     
-    if (savedAnglesForCart.length === 0 && currentElements.length === 0) {
+    if (anglesToSave.length === 0) {
       toast.error('En az bir açı için tasarım eklemelisiniz')
       return
     }
     
-    // Use savedAnglesForCart (just updated if needed)
-    const anglesToSave = savedAnglesForCart.length > 0 ? savedAnglesForCart : []
-    
-    if (anglesToSave.length === 0) {
-      toast.error('Lütfen önce "Açı Ekle" yapın')
-      return
-    }
+    console.log('[Cart] Final angles to save:', anglesToSave.length, anglesToSave.map(a => a.angleName))
     
     // Extract pixel art URL from first angle's first image element
     const firstAngle = anglesToSave[0]
@@ -783,6 +815,8 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
           elements: a.elements
         }))
       }
+      
+      console.log('[Cart] Adding item with', anglesToSave.length, 'angles:', cartItem)
       
       const existingCart = localStorage.getItem('cart')
       const cart = existingCart ? JSON.parse(existingCart) : []
