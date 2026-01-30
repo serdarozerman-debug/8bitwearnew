@@ -1000,7 +1000,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                       width: '100%',
                       height: '100%',
                       objectFit: 'contain',
-                      objectPosition: 'center top',
+                      objectPosition: 'center 45%',
                       transformOrigin: 'center top'
                     }}
                     onLoad={(e) => {
