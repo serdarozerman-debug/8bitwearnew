@@ -292,15 +292,15 @@ function DraggableElement({
 }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id })
   
-  const style = {
+  const style: React.CSSProperties = {
     position: 'absolute' as const,
     left: element.position.x,
     top: element.position.y,
     transform: transform ? CSS.Translate.toString(transform) : undefined,
     cursor: 'move',
     touchAction: 'none', // Prevent native touch behaviors (scroll, zoom, context menu)
-    WebkitTouchCallout: 'none', // Prevent iOS context menu (long press)
-    WebkitUserSelect: 'none', // Prevent text selection
+    WebkitTouchCallout: 'none' as any, // Prevent iOS context menu (long press)
+    WebkitUserSelect: 'none' as any, // Prevent text selection
     userSelect: 'none', // Prevent text selection
   }
 
