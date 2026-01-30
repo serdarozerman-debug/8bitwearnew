@@ -762,7 +762,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
       </div>
 
       {/* Left Panel - Product Options Only */}
-      <div className="w-full lg:w-[420px] bg-white border-b lg:border-b-0 lg:border-r border-gray-200 p-4 lg:p-6 overflow-y-auto" style={{ maxHeight: 'calc(50vh + 60px)' }}>
+      <div className="w-full lg:w-[420px] bg-white border-b lg:border-b-0 lg:border-r border-gray-200 p-4 lg:p-6 overflow-y-auto max-h-[calc(50vh+60px)] lg:max-h-screen">
         <h2 className="hidden lg:block text-2xl font-bold mb-6 text-gray-900">Ürün Ayarları</h2>
 
         {/* Product Type Selection */}
