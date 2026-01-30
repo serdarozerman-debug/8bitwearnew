@@ -48,3 +48,13 @@ button {
 * {
   -webkit-overflow-scrolling: touch;
 }
+
+/* Hide scrollbar for horizontal sliders */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

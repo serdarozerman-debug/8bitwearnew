@@ -741,7 +741,8 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         {/* Product Type Selection */}
         <div className="mb-4 lg:mb-6">
           <label className="block font-semibold mb-2 lg:mb-3 text-gray-900 text-sm lg:text-base">Ürün Tipi</label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {/* Mobile: Horizontal Scroll, Desktop: Grid */}
+          <div className="lg:grid lg:grid-cols-3 lg:gap-2 flex lg:flex-none gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
             {Object.entries(PRODUCT_ICONS).map(([type, icon]) => {
               const config = PRODUCT_CONFIGS[type as ProductType]
               return (
@@ -753,14 +754,14 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                     setCurrentElements([])
                     setAllAngleDesigns([])
                   }}
-                  className={`p-3 rounded-lg border-2 transition flex flex-col items-center ${
+                  className={`p-2 lg:p-3 rounded-lg border-2 transition flex flex-col items-center min-w-[70px] lg:min-w-0 flex-shrink-0 ${
                     selectedProduct === type
                       ? 'border-purple-500 bg-purple-50'
                       : 'border-gray-200 hover:border-purple-300'
                   }`}
                 >
-                  <img src={icon} alt={config.name} className="w-12 h-12 object-contain mb-1" />
-                  <div className="text-xs font-medium text-gray-900">{config.name}</div>
+                  <img src={icon} alt={config.name} className="w-8 h-8 lg:w-12 lg:h-12 object-contain mb-1" />
+                  <div className="text-[10px] lg:text-xs font-medium text-gray-900 text-center leading-tight">{config.name}</div>
                 </button>
               )
             })}
@@ -770,7 +771,8 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         {/* Angle Selection */}
         <div className="mb-4 lg:mb-6">
           <label className="block font-semibold mb-2 lg:mb-3 text-gray-900 text-sm lg:text-base">Açı</label>
-          <div className="grid grid-cols-2 gap-2">
+          {/* Mobile: Horizontal Scroll, Desktop: Grid */}
+          <div className="lg:grid lg:grid-cols-2 lg:gap-2 flex lg:flex-none gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
             {availableAngles.map((angle) => {
               const isDesigned = allAngleDesigns.some(d => d.angle === angle.id)
               return (
@@ -778,7 +780,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                   key={angle.id}
                   onClick={() => handleAngleChange(angle.id)}
                   disabled={selectedAngle === angle.id}
-                  className={`p-2 lg:p-3 rounded-lg border-2 transition relative ${
+                  className={`p-2 lg:p-3 rounded-lg border-2 transition relative min-w-[70px] lg:min-w-0 flex-shrink-0 flex flex-col items-center ${
                     selectedAngle === angle.id
                       ? 'border-purple-500 bg-purple-50'
                       : isDesigned
@@ -789,11 +791,11 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                   <img 
                     src={ANGLE_ICONS[angle.id] || '/icons/Ön Taraf.jpg'} 
                     alt={angle.name} 
-                    className="w-8 h-8 lg:w-10 lg:h-10 object-contain mb-1 mx-auto" 
+                    className="w-6 h-6 lg:w-10 lg:h-10 object-contain mb-1 mx-auto" 
                   />
-                  <div className="text-xs font-medium text-gray-900">{angle.name}</div>
+                  <div className="text-[10px] lg:text-xs font-medium text-gray-900 text-center leading-tight">{angle.name}</div>
                   {isDesigned && (
-                    <div className="absolute top-1 right-1 text-green-600">✓</div>
+                    <div className="absolute top-1 right-1 text-green-600 text-xs lg:text-sm">✓</div>
                   )}
                 </button>
               )
@@ -804,20 +806,27 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         {/* Color Selection */}
         <div className="mb-4 lg:mb-6">
           <label className="block font-semibold mb-2 lg:mb-3 text-gray-900 text-sm lg:text-base">Renk</label>
-          <div className="grid grid-cols-4 sm:grid-cols-4 gap-2">
+          {/* Mobile: Horizontal Scroll with Circles, Desktop: Grid with Rounded Squares */}
+          <div className="lg:grid lg:grid-cols-4 lg:gap-2 flex lg:flex-none gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
             {availableColors.map((color) => (
               <button
                 key={color}
                 onClick={() => setSelectedColor(color)}
-                className={`p-2 lg:p-3 rounded-lg border-2 transition ${
+                className={`flex-shrink-0 transition relative ${
                   selectedColor === color
-                    ? 'border-purple-500 ring-2 ring-purple-200'
-                    : 'border-gray-200'
+                    ? 'ring-4 ring-purple-400'
+                    : 'ring-2 ring-gray-200 hover:ring-gray-300'
                 }`}
                 style={{ backgroundColor: COLOR_HEX[color] }}
                 title={COLOR_LABELS[color]}
               >
-                {/* No text - just color block */}
+                {/* Mobile: Circle, Desktop: Rounded Square */}
+                <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-full lg:rounded-lg" />
+                {selectedColor === color && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-white text-xl drop-shadow-lg">✓</span>
+                  </div>
+                )}
               </button>
             ))}
           </div>
@@ -827,12 +836,13 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         {availableSizes.length > 0 && (
           <div className="mb-4 lg:mb-6">
             <label className="block font-semibold mb-2 lg:mb-3 text-gray-900 text-sm lg:text-base">Beden</label>
-            <div className="grid grid-cols-3 gap-2">
+            {/* Mobile: Horizontal Scroll, Desktop: Grid */}
+            <div className="lg:grid lg:grid-cols-3 lg:gap-2 flex lg:flex-none gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
               {availableSizes.map((size) => (
                 <button
                   key={size}
                   onClick={() => setSelectedSize(size)}
-                  className={`px-3 py-2 lg:px-4 rounded-lg border-2 transition text-gray-900 font-medium text-sm lg:text-base ${
+                  className={`px-3 py-1.5 lg:px-4 lg:py-2 rounded-lg border-2 transition text-gray-900 font-medium text-sm lg:text-base min-w-[60px] lg:min-w-0 flex-shrink-0 ${
                     selectedSize === size
                       ? 'border-purple-500 bg-purple-50'
                       : 'border-gray-200 hover:border-purple-300'
