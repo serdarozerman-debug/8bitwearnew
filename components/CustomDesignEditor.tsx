@@ -791,23 +791,22 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
 
   // Handle angle change
   const handleAngleChange = (angle: ProductAngle) => {
+    // Check if this angle is already saved (locked)
+    const isSavedAngle = savedAnglesForCart.some(a => a.angle === angle)
+    
+    if (isSavedAngle) {
+      const angleName = availableAngles.find(a => a.id === angle)?.name || angle
+      toast.error(`${angleName} zaten kaydedildi! Değiştirmek için önce silin.`)
+      return
+    }
+    
     // Save current before switching
     if (currentElements.length > 0) {
       saveCurrentAngleDesign()
     }
 
-    // CHANGED: Load the SAME design for all angles (not angle-specific)
-    // This way pixel art persists across all angles
-    const existing = allAngleDesigns.find(d => d.angle === angle)
-    if (existing) {
-      setCurrentElements(existing.elements)
-    } else {
-      // If this angle doesn't have a design yet, copy from current angle
-      // This makes the design persist when switching angles
-      if (currentElements.length > 0) {
-        setCurrentElements([...currentElements])
-      }
-    }
+    // Start fresh for new angle (don't copy elements)
+    setCurrentElements([])
     setSelectedAngle(angle)
     setSelectedElement(null)
   }
@@ -875,6 +874,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
           {/* Horizontal Scroll Slider - Mobile & Desktop */}
           <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
             {availableAngles.map((angle) => {
+              const isSaved = savedAnglesForCart.some(a => a.angle === angle.id)
               const isDesigned = allAngleDesigns.some(d => d.angle === angle.id)
               return (
                 <button
@@ -884,6 +884,8 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                   className={`p-2 lg:p-3 rounded-lg border-2 transition relative min-w-[70px] lg:min-w-0 flex-shrink-0 flex flex-col items-center ${
                     selectedAngle === angle.id
                       ? 'border-purple-500 bg-purple-50'
+                      : isSaved
+                      ? 'border-green-500 bg-green-100 cursor-pointer'
                       : isDesigned
                       ? 'border-green-300 bg-green-50 hover:border-green-500 cursor-pointer'
                       : 'border-gray-200 hover:border-purple-300'
@@ -895,7 +897,10 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                     className="w-6 h-6 lg:w-10 lg:h-10 object-contain mb-1 mx-auto" 
                   />
                   <div className="text-[10px] lg:text-xs font-medium text-gray-900 text-center leading-tight">{angle.name}</div>
-                  {isDesigned && (
+                  {isSaved && (
+                    <div className="absolute top-1 right-1 text-green-600 text-sm lg:text-base font-bold">🔒</div>
+                  )}
+                  {!isSaved && isDesigned && (
                     <div className="absolute top-1 right-1 text-green-600 text-xs lg:text-sm">✓</div>
                   )}
                 </button>
