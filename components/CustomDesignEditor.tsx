@@ -728,12 +728,17 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
       saveCurrentAngleDesign()
     }
 
-    // Load existing design for this angle
+    // CHANGED: Load the SAME design for all angles (not angle-specific)
+    // This way pixel art persists across all angles
     const existing = allAngleDesigns.find(d => d.angle === angle)
     if (existing) {
       setCurrentElements(existing.elements)
     } else {
-      setCurrentElements([])
+      // If this angle doesn't have a design yet, copy from current angle
+      // This makes the design persist when switching angles
+      if (currentElements.length > 0) {
+        setCurrentElements([...currentElements])
+      }
     }
     setSelectedAngle(angle)
     setSelectedElement(null)
@@ -757,7 +762,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
       </div>
 
       {/* Left Panel - Product Options Only */}
-      <div className="w-full lg:w-[420px] bg-white border-b lg:border-b-0 lg:border-r border-gray-200 p-4 lg:p-6 overflow-y-auto max-h-[50vh] lg:max-h-screen">
+      <div className="w-full lg:w-[420px] bg-white border-b lg:border-b-0 lg:border-r border-gray-200 p-4 lg:p-6 overflow-y-auto" style={{ maxHeight: 'calc(50vh + 60px)' }}>
         <h2 className="hidden lg:block text-2xl font-bold mb-6 text-gray-900">Ürün Ayarları</h2>
 
         {/* Product Type Selection */}
@@ -829,7 +834,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         <div className="mb-3 lg:mb-6">
           <label className="hidden lg:block font-semibold mb-3 text-gray-900 text-base">Renk</label>
           {/* Mobile: Horizontal Scroll with Circles, Desktop: Grid with Circles */}
-          <div className="lg:grid lg:grid-cols-4 lg:gap-2 flex lg:flex-none gap-3 overflow-x-auto pb-3 lg:pb-2 -mx-1 px-1 scrollbar-hide">
+          <div className="lg:grid lg:grid-cols-4 lg:gap-2 flex lg:flex-none gap-3 overflow-x-auto py-2 -mx-1 px-1 scrollbar-hide">
             {availableColors.map((color) => (
               <button
                 key={color}
