@@ -806,13 +806,13 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         {/* Color Selection */}
         <div className="mb-3 lg:mb-6">
           <label className="hidden lg:block font-semibold mb-3 text-gray-900 text-base">Renk</label>
-          {/* Mobile: Horizontal Scroll with Circles, Desktop: Grid with Rounded Squares */}
+          {/* Mobile: Horizontal Scroll with Circles, Desktop: Grid with Circles */}
           <div className="lg:grid lg:grid-cols-4 lg:gap-2 flex lg:flex-none gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
             {availableColors.map((color) => (
               <button
                 key={color}
                 onClick={() => setSelectedColor(color)}
-                className={`flex-shrink-0 transition relative ${
+                className={`flex-shrink-0 rounded-full transition relative ${
                   selectedColor === color
                     ? 'ring-4 ring-purple-400'
                     : 'ring-2 ring-gray-200 hover:ring-gray-300'
@@ -820,8 +820,8 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                 style={{ backgroundColor: COLOR_HEX[color] }}
                 title={COLOR_LABELS[color]}
               >
-                {/* Mobile: Circle, Desktop: Rounded Square */}
-                <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-full lg:rounded-lg" />
+                {/* Always Circle */}
+                <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-full" />
                 {selectedColor === color && (
                   <div className="absolute inset-0 flex items-center justify-center">
                     <span className="text-white text-xl drop-shadow-lg">✓</span>
@@ -889,11 +889,11 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
 
       {/* Center - Canvas */}
       <div className="flex-1 flex flex-col bg-gray-100 min-h-[50vh]">
-        {/* Zoom Controls */}
-        <div className="flex items-center justify-center gap-2 py-2 bg-white border-b">
+        {/* Zoom Controls - Desktop Only */}
+        <div className="hidden lg:flex items-center justify-center gap-2 py-2 bg-white border-b">
           <button
             onClick={() => setZoomLevel(Math.max(0.5, zoomLevel - 0.1))}
-            className="px-3 py-1.5 lg:px-4 lg:py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium text-gray-900 touch-manipulation"
+            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium text-gray-900"
           >
             −
           </button>
@@ -902,13 +902,13 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
           </span>
           <button
             onClick={() => setZoomLevel(Math.min(2, zoomLevel + 0.1))}
-            className="px-3 py-1.5 lg:px-4 lg:py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium text-gray-900 touch-manipulation"
+            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium text-gray-900"
           >
             +
           </button>
           <button
             onClick={() => setZoomLevel(1)}
-            className="px-3 py-1.5 lg:px-4 lg:py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium ml-2 text-gray-900 touch-manipulation"
+            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium ml-2 text-gray-900"
           >
             Reset
           </button>
@@ -977,15 +977,38 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                     </div>
                   ))}
                 </div>
+
+                {/* Floating Add to Cart Button - Top Right */}
+                <button
+                  onClick={handleAddToCartClick}
+                  disabled={currentElements.length === 0}
+                  className="absolute top-4 right-4 flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-full hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-bold text-sm shadow-lg z-10"
+                  style={{ pointerEvents: 'auto' }}
+                >
+                  <ShoppingCart size={20} />
+                  Sepete Ekle
+                </button>
               </div>
             </DndContext>
           </div>
+        </div>
+
+        {/* Add to Cart Button - Below Canvas (Mobile/Desktop) */}
+        <div className="bg-white border-t border-gray-200 p-3 lg:p-4">
+          <button
+            onClick={handleAddToCartClick}
+            disabled={currentElements.length === 0}
+            className="w-full flex items-center justify-center gap-2 px-6 py-3.5 lg:py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-bold text-base lg:text-lg shadow-md"
+          >
+            <ShoppingCart size={24} />
+            Sepete Ekle
+          </button>
         </div>
       </div>
 
       {/* Right Panel - Design Tools */}
       <div className="w-full lg:w-80 bg-white border-t lg:border-t-0 lg:border-l border-gray-200 p-4 lg:p-6 overflow-y-auto max-h-screen">
-        <h2 className="text-xl lg:text-2xl font-bold mb-4 lg:mb-6 text-gray-900">Tasarım Araçları</h2>
+        <h2 className="hidden lg:block text-2xl font-bold mb-6 text-gray-900">Tasarım Araçları</h2>
 
         {/* Action Buttons - Desktop Only (Mobile shows in left panel) */}
         <div className="hidden lg:block space-y-3 mb-6">
@@ -1016,8 +1039,8 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
           )}
         </div>
 
-        {/* Element List */}
-        <div className="mb-6">
+        {/* Element List - Desktop Only */}
+        <div className="hidden lg:block mb-6">
           <label className="block font-semibold mb-3 text-gray-900">Tasarım Öğeleri ({currentElements.length})</label>
           {currentElements.length === 0 ? (
             <p className="text-sm text-gray-500">Henüz öğe eklenmedi</p>
@@ -1045,9 +1068,9 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
           )}
         </div>
 
-        {/* Element Editor */}
+        {/* Element Editor - Desktop Only */}
         {selectedElementData && selectedElementData.type === 'text' && (
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+          <div className="hidden lg:block mb-6 p-4 bg-gray-50 rounded-lg">
             <label className="block font-semibold mb-2 text-gray-900">Metin Düzenle</label>
             <input
               type="text"
@@ -1084,16 +1107,6 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
             <div className="text-sm text-gray-600">{selectedElementData.fontSize}px</div>
           </div>
         )}
-
-        {/* Add to Cart Button */}
-        <button
-          onClick={handleAddToCartClick}
-          disabled={currentElements.length === 0}
-          className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-bold text-lg"
-        >
-          <ShoppingCart size={24} />
-          Sepete Ekle
-        </button>
       </div>
 
       {/* Modals */}
