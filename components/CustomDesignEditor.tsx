@@ -719,13 +719,26 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
   }
 
   const handleFinalAddToCart = async () => {
-    if (savedAnglesForCart.length === 0) {
+    // If there's a current design not yet saved, save it first
+    if (currentElements.length > 0 && !savedAnglesForCart.some(a => a.angle === selectedAngle)) {
+      await handleAddToCartClick() // This will save current angle
+    }
+    
+    if (savedAnglesForCart.length === 0 && currentElements.length === 0) {
       toast.error('En az bir açı için tasarım eklemelisiniz')
       return
     }
     
+    // Use savedAnglesForCart (just updated if needed)
+    const anglesToSave = savedAnglesForCart.length > 0 ? savedAnglesForCart : []
+    
+    if (anglesToSave.length === 0) {
+      toast.error('Lütfen önce "Açı Ekle" yapın')
+      return
+    }
+    
     // Extract pixel art URL from first angle's first image element
-    const firstAngle = savedAnglesForCart[0]
+    const firstAngle = anglesToSave[0]
     const pixelArtElement = firstAngle.elements.find(el => el.type === 'image' && el.imageUrl)
     const pixelArtUrl = pixelArtElement?.imageUrl || null
     
@@ -736,15 +749,15 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
       const cartItem = {
         id: `custom-${Date.now()}`,
         productName: `${PRODUCT_CONFIGS[selectedProduct].name} (Özel Tasarım)`,
-        productImage: savedAnglesForCart[0].designPreview, // First angle's preview
+        productImage: anglesToSave[0].designPreview, // First angle's preview
         color: COLOR_LABELS[selectedColor as ProductColor] || selectedColor,
         size: selectedSize,
         quantity: 1,
-        price: 299.99 + (savedAnglesForCart.length - 1) * 50, // +50 TL per additional angle
-        designPreview: savedAnglesForCart[0].designPreview,
+        price: 299.99 + (anglesToSave.length - 1) * 50, // +50 TL per additional angle
+        designPreview: anglesToSave[0].designPreview,
         pixelArtUrl: pixelArtUrl,
-        multiAngleDesigns: savedAnglesForCart, // All angles with their designs
-        customDesign: savedAnglesForCart.map(a => ({
+        multiAngleDesigns: anglesToSave, // All angles with their designs
+        customDesign: anglesToSave.map(a => ({
           angle: a.angle,
           angleName: a.angleName,
           elements: a.elements
@@ -1121,16 +1134,48 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
           </div>
         </div>
 
-        {/* Add to Cart Button - Below Canvas - Mobile Only */}
-        <div className="lg:hidden bg-white border-t border-gray-200 p-3">
-          <button
-            onClick={handleAddToCartClick}
-            disabled={currentElements.length === 0}
-            className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-bold text-base shadow-md"
-          >
-            <Plus size={24} />
-            {savedAnglesForCart.length === 0 ? 'Açı Ekle' : 'Başka Açı Ekle'}
-          </button>
+        {/* Action Buttons - Below Canvas - Mobile Only */}
+        <div className="lg:hidden bg-white border-t border-gray-200 p-3 space-y-2">
+          {savedAnglesForCart.length === 0 ? (
+            <>
+              <button
+                onClick={handleAddToCartClick}
+                disabled={currentElements.length === 0}
+                className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-bold text-base"
+              >
+                <Plus size={24} />
+                Açı Ekle
+              </button>
+              <button
+                onClick={handleFinalAddToCart}
+                disabled={currentElements.length === 0}
+                className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-bold text-base shadow-md"
+              >
+                <ShoppingCart size={24} />
+                Sepete Ekle
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={handleFinalAddToCart}
+                className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-bold text-base shadow-md"
+              >
+                <ShoppingCart size={24} />
+                Sepete Ekle ({savedAnglesForCart.length} Açı)
+              </button>
+              {savedAnglesForCart.length < 4 && (
+                <button
+                  onClick={handleAddToCartClick}
+                  disabled={currentElements.length === 0}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                >
+                  <Plus size={20} />
+                  Başka Açı Ekle
+                </button>
+              )}
+            </>
+          )}
         </div>
       </div>
 
@@ -1261,39 +1306,53 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
           </div>
         )}
 
-        {/* Final Add to Cart Button - Desktop Only */}
-        {savedAnglesForCart.length > 0 && (
-          <button
-            onClick={handleFinalAddToCart}
-            className="hidden lg:flex w-full items-center justify-center gap-2 px-6 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-bold text-lg"
-          >
-            <ShoppingCart size={24} />
-            Sepete Ekle ({savedAnglesForCart.length} Açı)
-          </button>
-        )}
-        
-        {/* Current Angle Action - Desktop Only */}
-        {!savedAnglesForCart.length && (
-          <button
-            onClick={handleAddToCartClick}
-            disabled={currentElements.length === 0}
-            className="hidden lg:flex w-full items-center justify-center gap-2 px-6 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-bold text-lg"
-          >
-            <Plus size={24} />
-            Açı Ekle
-          </button>
-        )}
-        
-        {savedAnglesForCart.length > 0 && savedAnglesForCart.length < 4 && (
-          <button
-            onClick={handleAddToCartClick}
-            disabled={currentElements.length === 0}
-            className="hidden lg:flex w-full items-center justify-center gap-2 px-6 py-3 mt-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-          >
-            <Plus size={20} />
-            Başka Açı Ekle
-          </button>
-        )}
+        {/* Action Buttons - Desktop Only */}
+        <div className="hidden lg:block space-y-3">
+          {/* If no saved angles yet - show both buttons */}
+          {savedAnglesForCart.length === 0 && (
+            <>
+              <button
+                onClick={handleAddToCartClick}
+                disabled={currentElements.length === 0}
+                className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-bold text-lg"
+              >
+                <Plus size={24} />
+                Açı Ekle
+              </button>
+              <button
+                onClick={handleFinalAddToCart}
+                disabled={currentElements.length === 0}
+                className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-bold text-lg"
+              >
+                <ShoppingCart size={24} />
+                Sepete Ekle
+              </button>
+            </>
+          )}
+          
+          {/* If angles saved - show final cart and optional add more */}
+          {savedAnglesForCart.length > 0 && (
+            <>
+              <button
+                onClick={handleFinalAddToCart}
+                className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-bold text-lg"
+              >
+                <ShoppingCart size={24} />
+                Sepete Ekle ({savedAnglesForCart.length} Açı)
+              </button>
+              {savedAnglesForCart.length < 4 && (
+                <button
+                  onClick={handleAddToCartClick}
+                  disabled={currentElements.length === 0}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                >
+                  <Plus size={20} />
+                  Başka Açı Ekle
+                </button>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Modals */}
