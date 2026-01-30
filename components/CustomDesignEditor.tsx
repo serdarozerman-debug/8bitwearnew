@@ -736,11 +736,11 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
     <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row overflow-x-hidden">
       {/* Left Panel - Product Options Only */}
       <div className="w-full lg:w-[420px] bg-white border-b lg:border-b-0 lg:border-r border-gray-200 p-4 lg:p-6 overflow-y-auto max-h-[50vh] lg:max-h-screen">
-        <h2 className="text-xl lg:text-2xl font-bold mb-4 lg:mb-6 text-gray-900">Ürün Ayarları</h2>
+        <h2 className="hidden lg:block text-2xl font-bold mb-6 text-gray-900">Ürün Ayarları</h2>
 
         {/* Product Type Selection */}
-        <div className="mb-4 lg:mb-6">
-          <label className="block font-semibold mb-2 lg:mb-3 text-gray-900 text-sm lg:text-base">Ürün Tipi</label>
+        <div className="mb-3 lg:mb-6">
+          <label className="hidden lg:block font-semibold mb-3 text-gray-900 text-base">Ürün Tipi</label>
           {/* Mobile: Horizontal Scroll, Desktop: Grid */}
           <div className="lg:grid lg:grid-cols-3 lg:gap-2 flex lg:flex-none gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
             {Object.entries(PRODUCT_ICONS).map(([type, icon]) => {
@@ -769,8 +769,8 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         </div>
 
         {/* Angle Selection */}
-        <div className="mb-4 lg:mb-6">
-          <label className="block font-semibold mb-2 lg:mb-3 text-gray-900 text-sm lg:text-base">Açı</label>
+        <div className="mb-3 lg:mb-6">
+          <label className="hidden lg:block font-semibold mb-3 text-gray-900 text-base">Açı</label>
           {/* Mobile: Horizontal Scroll, Desktop: Grid */}
           <div className="lg:grid lg:grid-cols-2 lg:gap-2 flex lg:flex-none gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
             {availableAngles.map((angle) => {
@@ -804,8 +804,8 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         </div>
 
         {/* Color Selection */}
-        <div className="mb-4 lg:mb-6">
-          <label className="block font-semibold mb-2 lg:mb-3 text-gray-900 text-sm lg:text-base">Renk</label>
+        <div className="mb-3 lg:mb-6">
+          <label className="hidden lg:block font-semibold mb-3 text-gray-900 text-base">Renk</label>
           {/* Mobile: Horizontal Scroll with Circles, Desktop: Grid with Rounded Squares */}
           <div className="lg:grid lg:grid-cols-4 lg:gap-2 flex lg:flex-none gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
             {availableColors.map((color) => (
@@ -834,8 +834,8 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
 
         {/* Size Selection */}
         {availableSizes.length > 0 && (
-          <div className="mb-4 lg:mb-6">
-            <label className="block font-semibold mb-2 lg:mb-3 text-gray-900 text-sm lg:text-base">Beden</label>
+          <div className="mb-3 lg:mb-6">
+            <label className="hidden lg:block font-semibold mb-3 text-gray-900 text-base">Beden</label>
             {/* Mobile: Horizontal Scroll, Desktop: Grid */}
             <div className="lg:grid lg:grid-cols-3 lg:gap-2 flex lg:flex-none gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
               {availableSizes.map((size) => (
@@ -854,6 +854,37 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
             </div>
           </div>
         )}
+
+        {/* Quick Action Buttons - Mobile: Below Size, Desktop: In Right Panel */}
+        <div className="lg:hidden space-y-2 mt-3">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowAIModal(true)}
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm font-medium"
+            >
+              <Upload size={18} />
+              Görsel Yükle
+            </button>
+
+            <button
+              onClick={handleAddText}
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
+            >
+              <Type size={18} />
+              Metin Ekle
+            </button>
+          </div>
+
+          {selectedElement && (
+            <button
+              onClick={handleDeleteElement}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium"
+            >
+              <Trash2 size={18} />
+              Seçili Öğeyi Sil
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Center - Canvas */}
@@ -956,8 +987,8 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
       <div className="w-full lg:w-80 bg-white border-t lg:border-t-0 lg:border-l border-gray-200 p-4 lg:p-6 overflow-y-auto max-h-screen">
         <h2 className="text-xl lg:text-2xl font-bold mb-4 lg:mb-6 text-gray-900">Tasarım Araçları</h2>
 
-        {/* Action Buttons */}
-        <div className="space-y-3 mb-6">
+        {/* Action Buttons - Desktop Only (Mobile shows in left panel) */}
+        <div className="hidden lg:block space-y-3 mb-6">
           <button
             onClick={() => setShowAIModal(true)}
             className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
