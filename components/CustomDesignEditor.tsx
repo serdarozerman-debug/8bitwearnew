@@ -461,7 +461,9 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
     const progressInterval = setInterval(() => {
       setAiProgress(prev => {
         if (prev >= 90) return prev
-        return prev + Math.random() * 15
+        // Increment by 5-15% rounded to whole numbers
+        const increment = Math.floor(Math.random() * 11) + 5 // 5-15
+        return Math.min(90, prev + increment)
       })
       messageIndex = (messageIndex + 1) % funMessages.length
       setAiFunMessage(funMessages[messageIndex])
@@ -731,15 +733,15 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
   const selectedElementData = currentElements.find(el => el.id === selectedElement)
 
   return (
-    <div className="h-screen bg-gray-50 flex overflow-hidden">
+    <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row overflow-x-hidden">
       {/* Left Panel - Product Options Only */}
-      <div className="w-[420px] bg-white border-r border-gray-200 p-6 overflow-y-auto">
-        <h2 className="text-2xl font-bold mb-6 text-gray-900">Ürün Ayarları</h2>
+      <div className="w-full lg:w-[420px] bg-white border-b lg:border-b-0 lg:border-r border-gray-200 p-4 lg:p-6 overflow-y-auto max-h-[50vh] lg:max-h-screen">
+        <h2 className="text-xl lg:text-2xl font-bold mb-4 lg:mb-6 text-gray-900">Ürün Ayarları</h2>
 
         {/* Product Type Selection */}
-        <div className="mb-6">
-          <label className="block font-semibold mb-3 text-gray-900">Ürün Tipi</label>
-          <div className="grid grid-cols-3 gap-2">
+        <div className="mb-4 lg:mb-6">
+          <label className="block font-semibold mb-2 lg:mb-3 text-gray-900 text-sm lg:text-base">Ürün Tipi</label>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {Object.entries(PRODUCT_ICONS).map(([type, icon]) => {
               const config = PRODUCT_CONFIGS[type as ProductType]
               return (
@@ -766,8 +768,8 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         </div>
 
         {/* Angle Selection */}
-        <div className="mb-6">
-          <label className="block font-semibold mb-3 text-gray-900">Açı</label>
+        <div className="mb-4 lg:mb-6">
+          <label className="block font-semibold mb-2 lg:mb-3 text-gray-900 text-sm lg:text-base">Açı</label>
           <div className="grid grid-cols-2 gap-2">
             {availableAngles.map((angle) => {
               const isDesigned = allAngleDesigns.some(d => d.angle === angle.id)
@@ -776,7 +778,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                   key={angle.id}
                   onClick={() => handleAngleChange(angle.id)}
                   disabled={selectedAngle === angle.id}
-                  className={`p-3 rounded-lg border-2 transition relative ${
+                  className={`p-2 lg:p-3 rounded-lg border-2 transition relative ${
                     selectedAngle === angle.id
                       ? 'border-purple-500 bg-purple-50'
                       : isDesigned
@@ -787,7 +789,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                   <img 
                     src={ANGLE_ICONS[angle.id] || '/icons/Ön Taraf.jpg'} 
                     alt={angle.name} 
-                    className="w-10 h-10 object-contain mb-1 mx-auto" 
+                    className="w-8 h-8 lg:w-10 lg:h-10 object-contain mb-1 mx-auto" 
                   />
                   <div className="text-xs font-medium text-gray-900">{angle.name}</div>
                   {isDesigned && (
@@ -800,14 +802,14 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         </div>
 
         {/* Color Selection */}
-        <div className="mb-6">
-          <label className="block font-semibold mb-3 text-gray-900">Renk</label>
-          <div className="grid grid-cols-4 gap-2">
+        <div className="mb-4 lg:mb-6">
+          <label className="block font-semibold mb-2 lg:mb-3 text-gray-900 text-sm lg:text-base">Renk</label>
+          <div className="grid grid-cols-4 sm:grid-cols-4 gap-2">
             {availableColors.map((color) => (
               <button
                 key={color}
                 onClick={() => setSelectedColor(color)}
-                className={`p-3 rounded-lg border-2 transition ${
+                className={`p-2 lg:p-3 rounded-lg border-2 transition ${
                   selectedColor === color
                     ? 'border-purple-500 ring-2 ring-purple-200'
                     : 'border-gray-200'
@@ -823,14 +825,14 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
 
         {/* Size Selection */}
         {availableSizes.length > 0 && (
-          <div className="mb-6">
-            <label className="block font-semibold mb-3 text-gray-900">Beden</label>
+          <div className="mb-4 lg:mb-6">
+            <label className="block font-semibold mb-2 lg:mb-3 text-gray-900 text-sm lg:text-base">Beden</label>
             <div className="grid grid-cols-3 gap-2">
               {availableSizes.map((size) => (
                 <button
                   key={size}
                   onClick={() => setSelectedSize(size)}
-                  className={`px-4 py-2 rounded-lg border-2 transition text-gray-900 font-medium ${
+                  className={`px-3 py-2 lg:px-4 rounded-lg border-2 transition text-gray-900 font-medium text-sm lg:text-base ${
                     selectedSize === size
                       ? 'border-purple-500 bg-purple-50'
                       : 'border-gray-200 hover:border-purple-300'
@@ -845,12 +847,12 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
       </div>
 
       {/* Center - Canvas */}
-      <div className="flex-1 flex flex-col bg-gray-100">
+      <div className="flex-1 flex flex-col bg-gray-100 min-h-[50vh]">
         {/* Zoom Controls */}
         <div className="flex items-center justify-center gap-2 py-2 bg-white border-b">
           <button
             onClick={() => setZoomLevel(Math.max(0.5, zoomLevel - 0.1))}
-            className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium text-gray-900"
+            className="px-3 py-1.5 lg:px-4 lg:py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium text-gray-900 touch-manipulation"
           >
             −
           </button>
@@ -859,13 +861,13 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
           </span>
           <button
             onClick={() => setZoomLevel(Math.min(2, zoomLevel + 0.1))}
-            className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium text-gray-900"
+            className="px-3 py-1.5 lg:px-4 lg:py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium text-gray-900 touch-manipulation"
           >
             +
           </button>
           <button
             onClick={() => setZoomLevel(1)}
-            className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium ml-2 text-gray-900"
+            className="px-3 py-1.5 lg:px-4 lg:py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm font-medium ml-2 text-gray-900 touch-manipulation"
           >
             Reset
           </button>
@@ -941,8 +943,8 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
       </div>
 
       {/* Right Panel - Design Tools */}
-      <div className="w-80 bg-white border-l border-gray-200 p-6 overflow-y-auto">
-        <h2 className="text-2xl font-bold mb-6 text-gray-900">Tasarım Araçları</h2>
+      <div className="w-full lg:w-80 bg-white border-t lg:border-t-0 lg:border-l border-gray-200 p-4 lg:p-6 overflow-y-auto max-h-screen">
+        <h2 className="text-xl lg:text-2xl font-bold mb-4 lg:mb-6 text-gray-900">Tasarım Araçları</h2>
 
         {/* Action Buttons */}
         <div className="space-y-3 mb-6">
