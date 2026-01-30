@@ -71,6 +71,39 @@ export default function CartPage() {
     })
   }
 
+  const removeAngleFromItem = (itemId: string, angleToRemove: string) => {
+    setCartItems(items => {
+      const updated = items.map(item => {
+        if (item.id === itemId && item.multiAngleDesigns) {
+          const remainingAngles = item.multiAngleDesigns.filter(a => a.angle !== angleToRemove)
+          
+          if (remainingAngles.length === 0) {
+            // If no angles left, remove entire item
+            toast.info('Son açı silindi, ürün sepetten çıkarıldı')
+            return null
+          }
+          
+          // Recalculate price: First angle 299 TL, additional +29 TL each
+          const newPrice = 299.99 + (remainingAngles.length - 1) * 29
+          
+          const angleName = item.multiAngleDesigns.find(a => a.angle === angleToRemove)?.angleName
+          toast.success(`${angleName} açısı silindi. Yeni fiyat: ${newPrice.toFixed(2)} ₺`)
+          
+          return {
+            ...item,
+            multiAngleDesigns: remainingAngles,
+            price: newPrice,
+            designPreview: remainingAngles[0].designPreview, // Update main preview to first remaining
+          }
+        }
+        return item
+      }).filter(item => item !== null) as CartItem[]
+      
+      localStorage.setItem('cart', JSON.stringify(updated))
+      return updated
+    })
+  }
+
   const clearCart = () => {
     setCartItems([])
     localStorage.removeItem('cart')
@@ -227,18 +260,29 @@ export default function CartPage() {
                       {item.multiAngleDesigns && item.multiAngleDesigns.length > 0 ? (
                         <div className="space-y-2">
                           {item.multiAngleDesigns.map((angleDesign, idx) => (
-                            <div key={idx} className="relative">
+                            <div key={idx} className="relative group">
                               <div className="w-32 h-32 bg-gray-100 rounded-lg overflow-hidden relative border-2 border-gray-200">
                                 <Image
                                   src={angleDesign.designPreview}
                                   alt={angleDesign.angleName}
                                   fill
                                   className="object-cover"
+                                  unoptimized
                                 />
                               </div>
                               <div className="absolute bottom-1 left-1 bg-black/70 text-white text-[10px] px-2 py-0.5 rounded">
                                 {angleDesign.angleName}
                               </div>
+                              {/* Delete Single Angle Button */}
+                              {item.multiAngleDesigns && item.multiAngleDesigns.length > 1 && (
+                                <button
+                                  onClick={() => removeAngleFromItem(item.id, angleDesign.angle)}
+                                  className="absolute top-1 right-1 bg-red-600 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition"
+                                  title={`${angleDesign.angleName} açısını sil`}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -250,6 +294,7 @@ export default function CartPage() {
                               alt={item.productName}
                               fill
                               className="object-cover"
+                              unoptimized
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-gray-400">
@@ -281,20 +326,20 @@ export default function CartPage() {
 
                       {/* Quantity Controls */}
                       <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2 border border-gray-300 rounded-lg">
+                        <div className="flex items-center gap-2 border border-gray-300 rounded-lg bg-white">
                           <button
                             onClick={() => updateQuantity(item.id, -1)}
-                            className="p-2 hover:bg-gray-100 transition"
+                            className="p-2 hover:bg-gray-100 transition text-gray-900"
                             disabled={item.quantity <= 1}
                           >
-                            <Minus className="w-4 h-4" />
+                            <Minus className="w-4 h-4 text-gray-900" />
                           </button>
-                          <span className="px-4 font-medium">{item.quantity}</span>
+                          <span className="px-4 font-medium text-gray-900">{item.quantity}</span>
                           <button
                             onClick={() => updateQuantity(item.id, 1)}
-                            className="p-2 hover:bg-gray-100 transition"
+                            className="p-2 hover:bg-gray-100 transition text-gray-900"
                           >
-                            <Plus className="w-4 h-4" />
+                            <Plus className="w-4 h-4 text-gray-900" />
                           </button>
                         </div>
 
