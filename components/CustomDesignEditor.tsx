@@ -298,6 +298,10 @@ function DraggableElement({
     top: element.position.y,
     transform: transform ? CSS.Translate.toString(transform) : undefined,
     cursor: 'move',
+    touchAction: 'none', // Prevent native touch behaviors (scroll, zoom, context menu)
+    WebkitTouchCallout: 'none', // Prevent iOS context menu (long press)
+    WebkitUserSelect: 'none', // Prevent text selection
+    userSelect: 'none', // Prevent text selection
   }
 
   const handleResizeMouseDown = (e: React.MouseEvent, corner: 'nw' | 'ne' | 'sw' | 'se') => {
@@ -352,8 +356,13 @@ function DraggableElement({
               width: element.imageWidth || 45,
               height: element.imageHeight || 45,
               objectFit: 'contain',
+              pointerEvents: 'none', // Prevent image from capturing events
+              WebkitTouchCallout: 'none', // Prevent iOS context menu
+              WebkitUserSelect: 'none',
+              userSelect: 'none',
             }}
             draggable={false}
+            onContextMenu={(e) => e.preventDefault()} // Prevent right-click menu
           />
         )}
         
@@ -921,7 +930,7 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
         </div>
 
         {/* Canvas Area */}
-        <div className="flex-1 flex items-start justify-center overflow-auto p-4">
+        <div className="flex-1 flex items-start justify-center overflow-auto p-4" style={{ touchAction: 'pan-y pinch-zoom' }}>
           <div className="flex items-start justify-center min-h-full">
             <DndContext onDragEnd={handleDragEnd}>
               {/* Fixed-size viewer container - handles zoom */}
@@ -934,7 +943,8 @@ export default function CustomDesignEditor({ productImage, productName, onSave }
                   transform: `scale(${zoomLevel})`,
                   transformOrigin: 'top center',
                   transition: 'transform 0.2s ease',
-                  flexShrink: 0
+                  flexShrink: 0,
+                  touchAction: 'none',
                 }}
               >
                 {/* Inner shirt-frame - normalizes all images */}

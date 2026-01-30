@@ -32,6 +32,13 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Prevent context menu on images (iOS long press) */
+img {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 /* Prevent horizontal overflow */
 html, body {
   overflow-x: hidden;
